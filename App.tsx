@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { SENTENCES as defaultSentences } from './constants/sentences';
 // FIX: Import SentenceWithOptions to explicitly type the sentences array.
 import type { Word, Feedback, Assignment, StudentProgress, Result, SentenceWithOptions } from './types';
@@ -33,6 +33,9 @@ const App: React.FC = () => {
   const [userSentence, setUserSentence] = useState<Word[]>([]);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
 
   // --- Effects for Initialization and Mode Switching ---
 
@@ -78,6 +81,20 @@ const App: React.FC = () => {
        setIsLoading(false);
     }
   }, [mode, assignment]);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [setupNewSentence]);
   
   // --- Core Game Logic & State Setup ---
 
@@ -90,9 +107,13 @@ const App: React.FC = () => {
     setFeedback(null);
     setUserSentence([]);
 
-    setTimeout(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    timeoutRef.current = setTimeout(() => {
       const sentenceConf = sentences[index];
-      if (!sentenceConf) return;
+      if (!sentenceConf || !isMountedRef.current) return;
 
       const words = tokenizeSentence(sentenceConf.text, sentenceConf.lock);
       const wordObjects = words.map((text, i) => ({
@@ -102,10 +123,11 @@ const App: React.FC = () => {
 
       const seed = assignment?.seed || 'default';
       const scrambleType = assignment?.options?.scramble || 'seeded';
-      const finalWords = scrambleType === 'seeded' 
-        ? seededShuffle(wordObjects, `${seed}-${index}`) 
+      const finalWords = scrambleType === 'seeded'
+        ? seededShuffle(wordObjects, `${seed}-${index}`)
         : wordObjects.sort(() => Math.random() - 0.5);
 
+      if (!isMountedRef.current) return;
       setAvailableWords(finalWords);
       setIsLoading(false);
     }, 300);
