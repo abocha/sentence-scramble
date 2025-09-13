@@ -14,6 +14,7 @@ export interface SentenceWithOptions {
   text: string;
   alts?: string[];
   lock?: string[];
+  chunks?: string[];
 }
 
 export interface AssignmentOptions {
