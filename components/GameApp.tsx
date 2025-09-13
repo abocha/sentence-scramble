@@ -406,7 +406,7 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
             ) : (
               <>
                 <h2 className="text-xl md:text-2xl font-bold text-center text-blue-600 mb-2">Unscramble the Sentence</h2>
-                <p className="text-center text-gray-500 mb-6">Drag words into the box to form a correct sentence. Or click the \"Teacher Panel\" button to create homework.</p>
+                <p className="text-center text-gray-500 mb-6">Drag words into the box to form a correct sentence. Or click the "Teacher Panel" button to create homework.</p>
                 <div className="text-center mb-6">
                   <a href="#teacher" className="px-6 py-2 bg-green-600 text-white font-bold rounded-lg shadow-md hover:bg-green-700 transition-all">
                     Go to Teacher Panel
