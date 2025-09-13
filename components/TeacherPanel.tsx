@@ -123,6 +123,7 @@ const TeacherPanel: React.FC = () => {
 
         <div className="flex justify-between items-center flex-wrap gap-4">
             <button
+                type="button"
                 onClick={generateLink}
                 className="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition-all transform hover:scale-105"
             >
@@ -145,6 +146,7 @@ const TeacherPanel: React.FC = () => {
               onFocus={(e) => e.target.select()}
             />
             <button
+              type="button"
               onClick={copyToClipboard}
               className="mt-4 px-6 py-2 bg-green-600 text-white font-bold rounded-lg shadow-md hover:bg-green-700 transition-all"
             >

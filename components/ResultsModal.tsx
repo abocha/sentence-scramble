@@ -80,6 +80,7 @@ ID: ${assignment.id.split('-')[1]}`;
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <button
+              type="button"
               onClick={copyToClipboard}
               className="p-3 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors"
             >
