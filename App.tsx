@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { SENTENCES as defaultSentences } from './constants/sentences';
 import type { Word, Feedback, Assignment, StudentProgress, Result, SentenceWithOptions } from './types';
 import Header from './components/Header';
@@ -17,6 +17,25 @@ export type AppMode = 'practice' | 'homework' | 'teacher';
 const App: React.FC = () => {
   const [mode, setMode] = useState<AppMode>('practice');
   const [assignment, setAssignment] = useState<Assignment | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Homework-specific state
+  const [studentName, setStudentName] = useState('');
+  const [progress, setProgress] = useState<StudentProgress | null>(null);
+  const [showResumePrompt, setShowResumePrompt] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  
+  // Game state (used by both modes)
+  const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
+  const [availableWords, setAvailableWords] = useState<Word[]>([]);
+  const [userSentence, setUserSentence] = useState<Word[]>([]);
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
+
+  // --- Effects for Initialization and Mode Switching ---
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -60,10 +79,32 @@ const App: React.FC = () => {
        setIsLoading(false);
     }
   }, [mode, assignment]);
+
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+  
   // --- Core Game Logic & State Setup ---
-  // Prepare the list of sentences, ensuring each entry conforms to SentenceWithOptions
-  const sentences = useMemo<SentenceWithOptions[]>(() => assignment?.sentences ?? defaultSentences.map(s => ({ text: s })), [assignment]);
-  const correctSentenceText = useMemo(() => sentences[currentSentenceIndex]?.text, [sentences, currentSentenceIndex]);
+
+  const sentences = useMemo<SentenceWithOptions[]>(
+    () => assignment?.sentences ?? defaultSentences.map(s => ({ text: s })),
+    [assignment]
+  );
+  const correctSentenceText = useMemo(
+    () => sentences[currentSentenceIndex]?.text ?? '',
+    [sentences, currentSentenceIndex]
+  );
 
   /**
    * Initialize game state for a new sentence by tokenizing and scrambling
@@ -74,9 +115,13 @@ const App: React.FC = () => {
     setFeedback(null);
     setUserSentence([]);
 
-    setTimeout(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    timeoutRef.current = setTimeout(() => {
       const sentenceConf = sentences[index];
-      if (!sentenceConf) return;
+      if (!sentenceConf || !isMountedRef.current) return;
 
       const words = tokenizeSentence(sentenceConf.text, sentenceConf.lock);
       const wordObjects = words.map((text, i) => ({
@@ -86,10 +131,13 @@ const App: React.FC = () => {
 
       const seed = assignment?.seed || 'default';
       const scrambleType = assignment?.options?.scramble || 'seeded';
-      const finalWords = scrambleType === 'seeded' 
-        ? seededShuffle(wordObjects, `${seed}-${index}`) 
-        : wordObjects.sort(() => Math.random() - 0.5);
+      const shuffleSeed =
+        scrambleType === 'seeded'
+          ? `${seed}-${index}`
+          : `${Date.now()}-${Math.random()}`;
+      const finalWords = seededShuffle(wordObjects, shuffleSeed);
 
+      if (!isMountedRef.current) return;
       setAvailableWords(finalWords);
       setIsLoading(false);
     }, 300);
