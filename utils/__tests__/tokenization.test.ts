@@ -33,5 +33,15 @@ describe('tokenizeSentence', () => {
       'kids',
     ]);
   });
+
+  it('locks phrasal verbs regardless of case', () => {
+    expect(tokenizeSentence('We will Pick Up the kids')).toEqual([
+      'We',
+      'will',
+      'Pick Up',
+      'the',
+      'kids',
+    ]);
+  });
 });
 
