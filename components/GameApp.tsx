@@ -11,6 +11,8 @@ import { tokenizeSentence } from '../utils/tokenization';
 import { seededShuffle } from '../utils/prng';
 import { saveProgress, loadProgress } from '../utils/storage';
 
+const HISTORY_LIMIT = 50;
+
 interface GameAppProps {
   mode: 'practice' | 'homework';
   assignment: Assignment | null;
@@ -28,6 +30,7 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
   const [availableWords, setAvailableWords] = useState<Word[]>([]);
   const [userSentence, setUserSentence] = useState<Word[]>([]);
+  const [history, setHistory] = useState<Array<{ available: Word[]; sentence: Word[] }>>([]);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -132,6 +135,11 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
     const wordToMove = findWordById(wordId);
     if (!wordToMove) return;
 
+    setHistory(prev => {
+      const newHistory = [...prev, { available: [...availableWords], sentence: [...userSentence] }];
+      return newHistory.length > HISTORY_LIMIT ? newHistory.slice(1) : newHistory;
+    });
+
     if (sourceZoneId === 'available-words' && targetZoneId === 'user-sentence') {
       setAvailableWords(prev => prev.filter(w => w.id !== wordId));
       setUserSentence(prev => {
@@ -155,6 +163,11 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
   const handleWordClick = (wordId: string, sourceZoneId: string) => {
     const word = findWordById(wordId);
     if (!word) return;
+
+    setHistory(prev => {
+      const newHistory = [...prev, { available: [...availableWords], sentence: [...userSentence] }];
+      return newHistory.length > HISTORY_LIMIT ? newHistory.slice(1) : newHistory;
+    });
     if (sourceZoneId === 'available-words') {
       setAvailableWords(prev => prev.filter(w => w.id !== wordId));
       setUserSentence(prev => [...prev, word]);
@@ -165,10 +178,11 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
   };
 
   const handleUndo = () => {
-    if (userSentence.length === 0) return;
-    const lastWord = userSentence[userSentence.length - 1];
-    setUserSentence(prev => prev.slice(0, -1));
-    setAvailableWords(prev => [...prev, lastWord]);
+    if (history.length === 0) return;
+    const lastSnapshot = history[history.length - 1];
+    setAvailableWords([...lastSnapshot.available]);
+    setUserSentence([...lastSnapshot.sentence]);
+    setHistory(prev => prev.slice(0, -1));
   };
 
   // --- Answer Checking & Progression ---
