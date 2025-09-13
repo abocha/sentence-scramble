@@ -8,6 +8,8 @@ const TeacherPanel: React.FC = () => {
   const [sentences, setSentences] = useState('');
   const [generatedLink, setGeneratedLink] = useState('');
   const [copySuccess, setCopySuccess] = useState('');
+  const [titleError, setTitleError] = useState('');
+  const [sentencesError, setSentencesError] = useState('');
 
   const handleSplitSentences = () => {
     const lines = splitIntoSentences(sentences);
@@ -15,17 +17,27 @@ const TeacherPanel: React.FC = () => {
   };
 
   const generateLink = () => {
-    if (!title.trim() || !sentences.trim()) {
-      alert('Please provide a title and at least one sentence.');
-      return;
-    }
-
     const sentenceArray = parseTeacherInput(sentences);
 
-    if (sentenceArray.length === 0) {
-      alert('Please provide at least one valid sentence.');
-      return;
+    let hasError = false;
+    if (!title.trim()) {
+      setTitleError('Please provide a title.');
+      hasError = true;
+    } else {
+      setTitleError('');
     }
+
+    if (!sentences.trim()) {
+      setSentencesError('Please provide at least one sentence.');
+      hasError = true;
+    } else if (sentenceArray.length === 0) {
+      setSentencesError('Please provide at least one valid sentence.');
+      hasError = true;
+    } else {
+      setSentencesError('');
+    }
+
+    if (hasError) return;
 
     // Default options for MVP
     const options: AssignmentOptions = {
@@ -75,10 +87,14 @@ const TeacherPanel: React.FC = () => {
             type="text"
             id="title"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              if (titleError) setTitleError('');
+            }}
             className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             placeholder="e.g., Adverbs of Frequency"
           />
+          {titleError && <p className="mt-1 text-sm text-red-600">{titleError}</p>}
         </div>
 
         <div>
@@ -88,10 +104,14 @@ const TeacherPanel: React.FC = () => {
             id="sentences"
             rows={10}
             value={sentences}
-            onChange={(e) => setSentences(e.target.value)}
+            onChange={(e) => {
+              setSentences(e.target.value);
+              if (sentencesError) setSentencesError('');
+            }}
             className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             placeholder="The quick brown fox jumps over the lazy dog.&#10;She sells seashells by the seashore."
           />
+          {sentencesError && <p className="mt-1 text-sm text-red-600">{sentencesError}</p>}
           <button
             type="button"
             onClick={handleSplitSentences}
