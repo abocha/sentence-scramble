@@ -33,6 +33,12 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
 
   // --- Effects for Initialization and Mode Switching ---
   useEffect(() => {
+    // Reset any leftover state when switching assignments or modes
+    setShowResults(false);
+    setShowResumePrompt(false);
+    setProgress(null);
+    setCurrentSentenceIndex(0);
+
     if (mode === 'homework' && assignment) {
       const savedName = localStorage.getItem('ss::studentName') || '';
       setStudentName(savedName);
