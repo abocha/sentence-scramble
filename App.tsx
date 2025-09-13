@@ -77,11 +77,15 @@ const App: React.FC = () => {
        setIsLoading(false);
     }
   }, [mode, assignment]);
-  
   // --- Core Game Logic & State Setup ---
+  // Prepare the list of sentences, ensuring each entry conforms to SentenceWithOptions
   const sentences = useMemo<SentenceWithOptions[]>(() => assignment?.sentences ?? defaultSentences.map(s => ({ text: s })), [assignment]);
   const correctSentenceText = useMemo(() => sentences[currentSentenceIndex]?.text, [sentences, currentSentenceIndex]);
 
+  /**
+   * Initialize game state for a new sentence by tokenizing and scrambling
+   * the sentence into draggable word objects.
+   */
   const setupNewSentence = useCallback((index: number = currentSentenceIndex) => {
     setIsLoading(true);
     setFeedback(null);
