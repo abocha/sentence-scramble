@@ -129,7 +129,7 @@ const TeacherPanel: React.FC = () => {
             >
                 Generate Link
             </button>
-             <a href="#" className="px-6 py-2 bg-gray-600 text-white font-bold rounded-lg shadow-md hover:bg-gray-700 transition-all">
+             <a href="#practice" className="px-6 py-2 bg-gray-600 text-white font-bold rounded-lg shadow-md hover:bg-gray-700 transition-all">
                 Back to Practice
             </a>
         </div>
