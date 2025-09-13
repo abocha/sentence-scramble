@@ -94,13 +94,19 @@ const App: React.FC = () => {
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [setupNewSentence]);
+  }, []);
   
   // --- Core Game Logic & State Setup ---
 
   // FIX: Explicitly type `sentences` to avoid a union type that causes issues with property access later.
-  const sentences = useMemo<SentenceWithOptions[]>(() => assignment?.sentences ?? defaultSentences.map(s => ({ text: s })), [assignment]);
-  const correctSentenceText = useMemo(() => sentences[currentSentenceIndex]?.text, [sentences, currentSentenceIndex]);
+  const sentences = useMemo<SentenceWithOptions[]>(
+    () => assignment?.sentences ?? defaultSentences.map(s => ({ text: s })),
+    [assignment]
+  );
+  const correctSentenceText = useMemo(
+    () => sentences[currentSentenceIndex]?.text ?? '',
+    [sentences, currentSentenceIndex]
+  );
 
   const setupNewSentence = useCallback((index: number = currentSentenceIndex) => {
     setIsLoading(true);
@@ -123,9 +129,11 @@ const App: React.FC = () => {
 
       const seed = assignment?.seed || 'default';
       const scrambleType = assignment?.options?.scramble || 'seeded';
-      const finalWords = scrambleType === 'seeded'
-        ? seededShuffle(wordObjects, `${seed}-${index}`)
-        : wordObjects.sort(() => Math.random() - 0.5);
+      const shuffleSeed =
+        scrambleType === 'seeded'
+          ? `${seed}-${index}`
+          : `${Date.now()}-${Math.random()}`;
+      const finalWords = seededShuffle(wordObjects, shuffleSeed);
 
       if (!isMountedRef.current) return;
       setAvailableWords(finalWords);
