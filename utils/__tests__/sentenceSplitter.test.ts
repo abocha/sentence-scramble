@@ -20,6 +20,14 @@ describe('splitIntoSentences', () => {
       'Mix well.'
     ]);
   });
+
+  it('preserves bullet characters in text', () => {
+    const text = 'Look for the bullet • in this sentence. Next sentence.';
+    expect(splitIntoSentences(text)).toEqual([
+      'Look for the bullet • in this sentence.',
+      'Next sentence.'
+    ]);
+  });
 });
 
 describe('parseTeacherInput', () => {
