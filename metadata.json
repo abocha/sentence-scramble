@@ -1,0 +1,5 @@
+{
+  "name": "Sentence Scramble",
+  "description": "An interactive educational web application for ESL learners to practice English sentence structure. Now with a homework mode where teachers can create and share assignments, and students can complete them and send back results.",
+  "requestFramePermissions": []
+}
