@@ -4,10 +4,21 @@
  * @param lockedPhrases Optional array of phrases to keep as single tokens.
  * @returns An array of string tokens.
  */
+// Default list of phrasal verbs that should be treated as a single token.
+// This list can be extended later as needed.
+const DEFAULT_LOCKED_PHRASES = [
+  'drop off', 'pick up', 'turn on', 'turn off', 'put on', 'take off',
+  'look after', 'give up', 'run into', 'get over', 'come across',
+  'work out', 'set up', 'find out', 'figure out', 'go on', 'carry on'
+];
+
 export const tokenizeSentence = (sentence: string, lockedPhrases: string[] = []): string[] => {
+  // Merge the default phrasal verbs with any teacher-provided locked phrases.
+  const allLocked = [...DEFAULT_LOCKED_PHRASES, ...lockedPhrases];
+
   // Create a regex that matches any of the locked phrases.
   // We sort by length descending to match longer phrases first (e.g., "in spite of" before "spite of").
-  const sortedLocked = [...lockedPhrases].sort((a, b) => b.length - a.length);
+  const sortedLocked = [...allLocked].sort((a, b) => b.length - a.length);
 
   // This regex will find either a locked phrase or a sequence of non-space characters (a word).
   // It handles punctuation attached to words correctly.

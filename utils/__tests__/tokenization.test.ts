@@ -23,5 +23,15 @@ describe('tokenizeSentence', () => {
       'all',
     ]);
   });
+
+  it('locks default phrasal verbs', () => {
+    expect(tokenizeSentence('We will pick up the kids')).toEqual([
+      'We',
+      'will',
+      'pick up',
+      'the',
+      'kids',
+    ]);
+  });
 });
 

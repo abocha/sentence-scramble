@@ -10,6 +10,7 @@ import ResumePrompt from './ResumePrompt';
 import { tokenizeSentence } from '../utils/tokenization';
 import { seededShuffle } from '../utils/prng';
 import { saveProgress, loadProgress } from '../utils/storage';
+import { chunkSentence } from '../utils/chunking';
 
 const HISTORY_LIMIT = 50;
 
@@ -30,6 +31,8 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
   const [availableWords, setAvailableWords] = useState<Word[]>([]);
   const [userSentence, setUserSentence] = useState<Word[]>([]);
+  const [isChunkMode, setIsChunkMode] = useState(false);
+  const [currentChunks, setCurrentChunks] = useState<string[] | null>(null);
   const [history, setHistory] = useState<Array<{ available: Word[]; sentence: Word[] }>>([]);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -75,19 +78,60 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
       const sentenceConf = sentences[index];
       if (!sentenceConf) return;
 
-      const words = tokenizeSentence(sentenceConf.text, sentenceConf.lock);
-      const wordObjects = words.map((text, i) => ({
-        id: `${i}-${text}`,
-        text,
-      }));
-
       const seed = assignment?.seed || 'default';
       const scrambleType = assignment?.options?.scramble || 'seeded';
-      const finalWords = scrambleType === 'seeded'
-        ? seededShuffle(wordObjects, `${seed}-${index}`)
-        : wordObjects.sort(() => Math.random() - 0.5);
 
-      setAvailableWords(finalWords);
+      let chunks: string[] | null = null;
+      if (sentenceConf.chunks && sentenceConf.chunks.length) {
+        chunks = sentenceConf.chunks;
+      } else {
+        const tokens = tokenizeSentence(sentenceConf.text, sentenceConf.lock);
+        if (tokens.length > 12) {
+          chunks = chunkSentence(sentenceConf.text);
+        }
+      }
+
+      if (chunks) {
+        setIsChunkMode(true);
+        setCurrentChunks(chunks);
+
+        let wordObjects = chunks.map((text, i) => ({ id: `${i}-${text}`, text }));
+        const initialSentence: Word[] = [];
+        let toShuffle = wordObjects;
+
+        if (wordObjects.length) {
+          initialSentence.push(wordObjects[0]);
+          toShuffle = wordObjects.slice(1);
+          if (toShuffle.length) {
+            const last = toShuffle.pop()!;
+            initialSentence.push(last);
+          }
+        }
+
+        const finalWords = scrambleType === 'seeded'
+          ? seededShuffle(toShuffle, `${seed}-${index}`)
+          : toShuffle.sort(() => Math.random() - 0.5);
+
+        setAvailableWords(finalWords);
+        setUserSentence(initialSentence);
+      } else {
+        setIsChunkMode(false);
+        setCurrentChunks(null);
+
+        const words = tokenizeSentence(sentenceConf.text, sentenceConf.lock);
+        const wordObjects = words.map((text, i) => ({
+          id: `${i}-${text}`,
+          text,
+        }));
+
+        const finalWords = scrambleType === 'seeded'
+          ? seededShuffle(wordObjects, `${seed}-${index}`)
+          : wordObjects.sort(() => Math.random() - 0.5);
+
+        setAvailableWords(finalWords);
+        setUserSentence([]);
+      }
+
       setIsLoading(false);
     }, 300);
   }, [sentences, currentSentenceIndex, assignment]);
@@ -135,6 +179,20 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
     const wordToMove = findWordById(wordId);
     if (!wordToMove) return;
 
+    const firstId = isChunkMode && currentChunks ? `0-${currentChunks[0]}` : null;
+    const lastId = isChunkMode && currentChunks ? `${currentChunks.length - 1}-${currentChunks[currentChunks.length - 1]}` : null;
+    if (isChunkMode) {
+      if (sourceZoneId === 'user-sentence' && (wordId === firstId || wordId === lastId)) {
+        return;
+      }
+      if (targetZoneId === 'user-sentence') {
+        if (targetIndex === 0) targetIndex = 1;
+        if (targetIndex !== undefined && lastId && targetIndex > userSentence.length - 1) {
+          targetIndex = userSentence.length - 1;
+        }
+      }
+    }
+
     setHistory(prev => {
       const newHistory = [...prev, { available: [...availableWords], sentence: [...userSentence] }];
       return newHistory.length > HISTORY_LIMIT ? newHistory.slice(1) : newHistory;
@@ -163,6 +221,12 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
   const handleWordClick = (wordId: string, sourceZoneId: string) => {
     const word = findWordById(wordId);
     if (!word) return;
+
+     if (isChunkMode && sourceZoneId === 'user-sentence' && currentChunks) {
+       const firstId = `0-${currentChunks[0]}`;
+       const lastId = `${currentChunks.length - 1}-${currentChunks[currentChunks.length - 1]}`;
+       if (wordId === firstId || wordId === lastId) return;
+     }
 
     setHistory(prev => {
       const newHistory = [...prev, { available: [...availableWords], sentence: [...userSentence] }];
@@ -203,8 +267,16 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
   };
 
   const handleCheckAnswer = () => {
-    const userAnswer = userSentence.map(w => w.text).join(' ').trim();
-    const isCorrect = userAnswer === correctSentenceText;
+    let isCorrect = false;
+
+    if (isChunkMode && currentChunks) {
+      const userChunks = userSentence.map(w => w.text.trim().toLowerCase());
+      const target = currentChunks.map(c => c.trim().toLowerCase());
+      isCorrect = userChunks.join('|') === target.join('|');
+    } else {
+      const userAnswer = userSentence.map(w => w.text).join(' ').trim();
+      isCorrect = userAnswer === correctSentenceText;
+    }
 
     if (mode === 'homework') {
       updateProgress({ index: currentSentenceIndex, ok: isCorrect, revealed: false });
