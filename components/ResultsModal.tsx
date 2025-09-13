@@ -108,7 +108,7 @@ ID: ${assignment.id.split('-')[1]}`;
             WhatsApp
           </a>
           <a
-            href={`https://t.me/share/url?url= &text=${encodedText}`}
+            href={`https://t.me/share/url?text=${encodedText}`}
             target="_blank"
             rel="noopener noreferrer"
             className="p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors block"
