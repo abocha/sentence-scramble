@@ -19,11 +19,14 @@ const ResultsModal: React.FC<ResultsModalProps> = ({ assignment, progress }) => 
       return `${r.index + 1}${status}`;
     }).join(' ');
 
+    const idParts = assignment.id.split('-');
+    const shareId = idParts.length > 1 ? idParts[1] : assignment.id;
+
     return `Homework: ${assignment.title} (v${assignment.version})
 Student: ${student.name || 'N/A'}
 Result: ${score} correct (${summary.reveals} reveals)
 Items: ${items}
-ID: ${assignment.id.split('-')[1]}`;
+ID: ${shareId}`;
   };
 
   const shareText = generateShareText();
