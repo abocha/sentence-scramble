@@ -17,73 +17,54 @@ const MAX_CHUNK_TOKENS = 8;
  * Automatically chunk a sentence when the teacher does not provide explicit chunks.
  * The algorithm loosely follows the specification provided in the project brief.
  */
-export const chunkSentence = (text: string): string[] => {
-  const sentences = splitIntoSentences(text);
-  const result: string[] = [];
+export const chunkSentence = (sentence: string): string[] => {
+  const tokens = mergeProperNouns(tokenizeSentence(sentence));
+  if (tokens.length <= 12) return [sentence.trim()];
 
-  sentences.forEach(sentence => {
-    const tokens = mergeProperNouns(tokenizeSentence(sentence));
-    if (tokens.length <= 12) {
-      result.push(sentence.trim());
-      return;
+  const chunks: string[] = [];
+  let current: string[] = [];
+
+  const pushChunk = () => {
+    if (current.length) {
+      chunks.push(current.join(' '));
+      current = [];
+    }
+  };
+
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    const normalized = token.toLowerCase();
+
+    // Start a new chunk at relative pronouns.
+    if (RELATIVE_PRONOUNS.includes(normalized) && current.length) {
+      pushChunk();
     }
 
-    let current: string[] = [];
+    current.push(token);
 
-    const pushChunk = () => {
-      if (current.length) {
-        result.push(current.join(' '));
-        current = [];
-      }
-    };
-
-    for (let i = 0; i < tokens.length; i++) {
-      const token = tokens[i];
-      const normalized = token.toLowerCase();
-
-      if (RELATIVE_PRONOUNS.includes(normalized) && current.length) {
-        pushChunk();
-      }
-
-      current.push(token);
-
-      if (current.length > MAX_CHUNK_TOKENS) {
-        const lastPrepIdx = findLastIndex(current, t => PREPOSITIONS.includes(t.toLowerCase()));
-        if (lastPrepIdx > 0) {
-          const before = current.splice(0, lastPrepIdx);
-          result.push(before.join(' '));
-          if (current.length && /[,:;]$/.test(current[current.length - 1])) {
-            pushChunk();
-          }
-        } else {
+    // Enforce maximum chunk size by splitting at the nearest preposition when possible.
+    if (current.length > MAX_CHUNK_TOKENS) {
+      const lastPrepIdx = findLastIndex(current, t => PREPOSITIONS.includes(t.toLowerCase()));
+      if (lastPrepIdx > 0) {
+        const before = current.splice(0, lastPrepIdx);
+        chunks.push(before.join(' '));
+        if (current.length && /[,:;]$/.test(current[current.length - 1])) {
           pushChunk();
         }
-      }
-
-      if (/[,:;]$/.test(token)) {
+      } else {
         pushChunk();
-        continue;
       }
     }
 
-    pushChunk();
-  });
+    // Commit chunk after commas, semicolons or colons.
+    if (/[,:;]$/.test(token)) {
+      pushChunk();
+      continue;
+    }
+  }
 
-  return result;
-};
-
-export const needsChunking = (text: string): boolean => {
-  const sentences = splitIntoSentences(text);
-  return sentences.some(sentence => {
-    const tokens = mergeProperNouns(tokenizeSentence(sentence));
-    return tokens.length > 12;
-  });
-};
-
-const splitIntoSentences = (text: string): string[] => {
-  const matches = text.match(/[^.!?…]+(?:\.\.\.|[.!?…])?/g);
-  return matches ? matches.map(s => s.trim()).filter(Boolean) : [text.trim()];
-
+  pushChunk();
+  return chunks;
 };
 
 // Merge consecutive capitalized tokens to avoid splitting proper names.
