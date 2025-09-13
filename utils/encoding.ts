@@ -1,9 +1,14 @@
 import type { Assignment } from '../types';
 
-// --- Base64URL helpers (UTF-8 safe) ---
+// --- Base64URL helpers (UTF-8 safe using TextEncoder/TextDecoder) ---
 const toB64Url = (json: unknown): string => {
   const jsonString = JSON.stringify(json);
-  const b64 = btoa(unescape(encodeURIComponent(jsonString)));
+  const bytes = new TextEncoder().encode(jsonString);
+  let binary = '';
+  bytes.forEach((b) => {
+    binary += String.fromCharCode(b);
+  });
+  const b64 = btoa(binary);
   return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 };
 
@@ -11,7 +16,9 @@ const fromB64Url = <T = unknown>(b64url: string): T | null => {
   try {
     const pad = (x: string) => x + '==='.slice((x.length + 3) % 4);
     const b64 = pad(b64url).replace(/-/g, '+').replace(/_/g, '/');
-    const jsonString = decodeURIComponent(escape(atob(b64)));
+    const binary = atob(b64);
+    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+    const jsonString = new TextDecoder().decode(bytes);
     return JSON.parse(jsonString) as T;
   } catch (e) {
     console.error('Failed to decode assignment:', e);
