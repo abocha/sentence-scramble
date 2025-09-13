@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Assignment, AssignmentOptions } from '../types';
 import { encodeAssignmentToHash } from '../utils/encoding';
+import { parseTeacherInput, splitIntoSentences } from '../utils/sentenceSplitter';
 
 const TeacherPanel: React.FC = () => {
   const [title, setTitle] = useState('');
@@ -8,13 +9,18 @@ const TeacherPanel: React.FC = () => {
   const [generatedLink, setGeneratedLink] = useState('');
   const [copySuccess, setCopySuccess] = useState('');
 
+  const handleSplitSentences = () => {
+    const lines = splitIntoSentences(sentences);
+    setSentences(lines.join('\n'));
+  };
+
   const generateLink = () => {
     if (!title.trim() || !sentences.trim()) {
       alert('Please provide a title and at least one sentence.');
       return;
     }
 
-    const sentenceArray = sentences.split('\n').filter(s => s.trim() !== '').map(s => ({ text: s.trim() }));
+    const sentenceArray = parseTeacherInput(sentences);
 
     if (sentenceArray.length === 0) {
       alert('Please provide at least one valid sentence.');
@@ -77,6 +83,7 @@ const TeacherPanel: React.FC = () => {
 
         <div>
           <label htmlFor="sentences" className="block text-sm font-medium text-gray-700">Sentences (one per line)</label>
+          <p className="text-sm text-gray-500 mt-1">One sentence per line. Or paste a paragraph and click Split into sentences.</p>
           <textarea
             id="sentences"
             rows={10}
@@ -85,6 +92,13 @@ const TeacherPanel: React.FC = () => {
             className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             placeholder="The quick brown fox jumps over the lazy dog.&#10;She sells seashells by the seashore."
           />
+          <button
+            type="button"
+            onClick={handleSplitSentences}
+            className="mt-2 px-4 py-1 bg-gray-200 text-gray-800 rounded"
+          >
+            Split into sentences
+          </button>
         </div>
 
         <div className="flex justify-between items-center flex-wrap gap-4">
