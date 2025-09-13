@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { SENTENCES as defaultSentences } from '../constants/sentences';
 import type { Word, Feedback, Assignment, StudentProgress, Result, SentenceWithOptions } from '../types';
 import Header from './Header';
@@ -36,6 +36,8 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // --- Effects for Initialization and Mode Switching ---
   useEffect(() => {
     // Reset any leftover state when switching assignments or modes
@@ -63,6 +65,14 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, assignment]);
 
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
   // --- Core Game Logic & State Setup ---
   const sentences = useMemo<SentenceWithOptions[]>(() => assignment?.sentences ?? defaultSentences.map(s => ({ text: s })), [assignment]);
   const correctSentenceText = useMemo(() => sentences[currentSentenceIndex]?.text, [sentences, currentSentenceIndex]);
@@ -72,7 +82,8 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
     setFeedback(null);
     setUserSentence([]);
 
-    setTimeout(() => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => {
       const sentenceConf = sentences[index];
       if (!sentenceConf) return;
 
