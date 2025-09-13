@@ -1,7 +1,7 @@
-import React, { useState, useRef } from 'react';
-import type { Word } from '../types';
-import WordButton from './WordButton';
-import DropIndicator from './DropIndicator';
+import React, { useState, useRef } from "react";
+import type { Word } from "../types";
+import WordButton from "./WordButton";
+import DropIndicator from "./DropIndicator";
 
 interface DropZoneProps {
   id: string;
@@ -14,15 +14,27 @@ interface DropZoneProps {
   isSentenceZone?: boolean;
 }
 
-const DropZone: React.FC<DropZoneProps> = ({ id, words, title, onDrop, onWordClick, isDragging, setIsDragging, isSentenceZone = false }) => {
+const DropZone: React.FC<DropZoneProps> = ({
+  id,
+  words,
+  title,
+  onDrop,
+  onWordClick,
+  isDragging,
+  setIsDragging,
+  isSentenceZone = false,
+}) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, wordId: string) => {
-    e.dataTransfer.setData('wordId', wordId);
-    e.dataTransfer.setData('sourceZoneId', id);
-    e.dataTransfer.effectAllowed = 'move';
+  const handleDragStart = (
+    e: React.DragEvent<HTMLDivElement>,
+    wordId: string,
+  ) => {
+    e.dataTransfer.setData("wordId", wordId);
+    e.dataTransfer.setData("sourceZoneId", id);
+    e.dataTransfer.effectAllowed = "move";
     setTimeout(() => setIsDragging(true), 0);
   };
 
@@ -31,19 +43,21 @@ const DropZone: React.FC<DropZoneProps> = ({ id, words, title, onDrop, onWordCli
     setIsDragOver(false);
     setDropIndex(null);
   };
-  
+
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    e.dataTransfer.dropEffect = "move";
     setIsDragOver(true);
 
     if (isSentenceZone) {
       const container = containerRef.current;
       if (!container) return;
-      
-      const draggableElements = [...container.querySelectorAll('[draggable="true"]')];
+
+      const draggableElements = [
+        ...container.querySelectorAll('[draggable="true"]'),
+      ];
       let closest = { offset: Number.NEGATIVE_INFINITY, index: words.length };
-  
+
       draggableElements.forEach((child, index) => {
         const box = child.getBoundingClientRect();
         const offset = e.clientX - box.left - box.width / 2;
@@ -51,7 +65,7 @@ const DropZone: React.FC<DropZoneProps> = ({ id, words, title, onDrop, onWordCli
           closest = { offset: offset, index: index };
         }
       });
-  
+
       setDropIndex(closest.index);
     }
   };
@@ -63,8 +77,8 @@ const DropZone: React.FC<DropZoneProps> = ({ id, words, title, onDrop, onWordCli
 
   const handleDropEvent = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    const wordId = e.dataTransfer.getData('wordId');
-    const sourceZoneId = e.dataTransfer.getData('sourceZoneId');
+    const wordId = e.dataTransfer.getData("wordId");
+    const sourceZoneId = e.dataTransfer.getData("sourceZoneId");
     if (wordId && sourceZoneId) {
       onDrop(wordId, sourceZoneId, dropIndex ?? undefined);
     }
@@ -73,9 +87,16 @@ const DropZone: React.FC<DropZoneProps> = ({ id, words, title, onDrop, onWordCli
     setDropIndex(null);
   };
 
-  const baseClasses = "w-full min-h-[100px] p-4 rounded-lg border-2 border-dashed transition-all duration-200";
-  const stateClasses = isDragOver && !isSentenceZone ? 'border-blue-500 bg-blue-50' : 'border-gray-300';
-  const emptyClasses = words.length === 0 && isSentenceZone ? 'flex items-center justify-center text-gray-400' : 'flex flex-wrap gap-3 items-center';
+  const baseClasses =
+    "w-full min-h-[100px] p-4 rounded-lg border-2 border-dashed transition-all duration-200";
+  const stateClasses =
+    isDragOver && !isSentenceZone
+      ? "border-blue-500 bg-blue-50"
+      : "border-gray-300";
+  const emptyClasses =
+    words.length === 0 && isSentenceZone
+      ? "flex items-center justify-center text-gray-400"
+      : "flex flex-wrap gap-3 items-center";
 
   return (
     <div>
@@ -90,11 +111,17 @@ const DropZone: React.FC<DropZoneProps> = ({ id, words, title, onDrop, onWordCli
         className={`${baseClasses} ${stateClasses} ${emptyClasses}`}
       >
         {words.length === 0 && isSentenceZone ? (
-           isDragOver ? <DropIndicator /> : <span className="italic">Drop words here...</span>
+          isDragOver ? (
+            <DropIndicator />
+          ) : (
+            <span className="italic">Drop words here...</span>
+          )
         ) : (
           words.map((word, index) => (
             <React.Fragment key={word.id}>
-              {isSentenceZone && isDragOver && dropIndex === index && <DropIndicator />}
+              {isSentenceZone && isDragOver && dropIndex === index && (
+                <DropIndicator />
+              )}
               <WordButton
                 word={word}
                 onDragStart={handleDragStart}
@@ -103,7 +130,10 @@ const DropZone: React.FC<DropZoneProps> = ({ id, words, title, onDrop, onWordCli
             </React.Fragment>
           ))
         )}
-        {isSentenceZone && isDragOver && dropIndex === words.length && words.length > 0 && <DropIndicator />}
+        {isSentenceZone &&
+          isDragOver &&
+          dropIndex === words.length &&
+          words.length > 0 && <DropIndicator />}
       </div>
     </div>
   );

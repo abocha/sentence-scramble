@@ -1,5 +1,5 @@
-import React from 'react';
-import type { Word } from '../types';
+import React from "react";
+import type { Word } from "../types";
 
 interface WordButtonProps {
   word: Word;
@@ -7,7 +7,11 @@ interface WordButtonProps {
   onClick?: (wordId: string) => void;
 }
 
-const WordButton: React.FC<WordButtonProps> = ({ word, onDragStart, onClick }) => {
+const WordButton: React.FC<WordButtonProps> = ({
+  word,
+  onDragStart,
+  onClick,
+}) => {
   return (
     <div
       draggable
