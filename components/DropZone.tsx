@@ -12,9 +12,11 @@ interface DropZoneProps {
   isDragging: boolean;
   setIsDragging: (isDragging: boolean) => void;
   isSentenceZone?: boolean;
+  startWord?: Word | null;
+  endWord?: Word | null;
 }
 
-const DropZone: React.FC<DropZoneProps> = ({ id, words, title, onDrop, onWordClick, isDragging, setIsDragging, isSentenceZone = false }) => {
+const DropZone: React.FC<DropZoneProps> = ({ id, words, title, onDrop, onWordClick, isDragging, setIsDragging, isSentenceZone = false, startWord = null, endWord = null }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -89,6 +91,9 @@ const DropZone: React.FC<DropZoneProps> = ({ id, words, title, onDrop, onWordCli
         onDragEnd={handleDragEnd}
         className={`${baseClasses} ${stateClasses} ${emptyClasses}`}
       >
+        {startWord && (
+          <WordButton word={startWord} onDragStart={handleDragStart} draggable={false} />
+        )}
         {words.length === 0 && isSentenceZone ? (
            isDragOver ? <DropIndicator /> : <span className="italic">Drop words here...</span>
         ) : (
@@ -104,6 +109,9 @@ const DropZone: React.FC<DropZoneProps> = ({ id, words, title, onDrop, onWordCli
           ))
         )}
         {isSentenceZone && isDragOver && dropIndex === words.length && words.length > 0 && <DropIndicator />}
+        {endWord && (
+          <WordButton word={endWord} onDragStart={handleDragStart} draggable={false} />
+        )}
       </div>
     </div>
   );
