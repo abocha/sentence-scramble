@@ -1,4 +1,4 @@
-import type { Assignment } from '../types';
+import type { Assignment, SentenceWithOptions } from '../types';
 
 // --- Base64URL helpers (UTF-8 safe using TextEncoder/TextDecoder) ---
 const toB64Url = (json: unknown): string => {
@@ -38,12 +38,15 @@ export const encodeAssignmentToHash = (assignment: Assignment): string => {
 
 // Decode a hash payload back into an Assignment object.
 export const parseAssignmentFromHash = (hash: string): Assignment | null => {
-  const obj = fromB64Url<Assignment>(hash);
+  const obj = fromB64Url<
+    Assignment & { sentences: Array<string | SentenceWithOptions> }
+  >(hash);
   if (!obj) return null;
 
   // Defensive normalization of sentences
-  obj.sentences = obj.sentences.map((s: any) =>
-    typeof s === 'string' ? { text: s } : s
+  obj.sentences = obj.sentences.map(
+    (s: string | SentenceWithOptions): SentenceWithOptions =>
+      typeof s === 'string' ? { text: s } : s
   );
 
   if (obj.id && obj.title && Array.isArray(obj.sentences)) {

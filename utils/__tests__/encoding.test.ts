@@ -25,4 +25,28 @@ describe('encoding utilities', () => {
 
     expect(decoded).toEqual(assignment);
   });
+
+  it('normalizes sentences provided as plain strings', () => {
+    const assignmentLike = {
+      id: '1',
+      title: 'mixed',
+      version: 1,
+      seed: 'seed',
+      options: {
+        attempts: 'unlimited',
+        hints: 'none',
+        feedback: 'show-on-wrong',
+        scramble: 'seeded',
+      },
+      sentences: ['hello', { text: 'world' }],
+    };
+
+    const encoded = encodeAssignmentToHash(assignmentLike as unknown as Assignment);
+    const decoded = parseAssignmentFromHash(encoded);
+
+    expect(decoded?.sentences).toEqual([
+      { text: 'hello' },
+      { text: 'world' },
+    ]);
+  });
 });
