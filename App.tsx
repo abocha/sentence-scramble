@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { SENTENCES as defaultSentences } from './constants/sentences';
-// FIX: Import SentenceWithOptions to explicitly type the sentences array.
 import type { Word, Feedback, Assignment, StudentProgress, Result, SentenceWithOptions } from './types';
 import Header from './components/Header';
 import DropZone from './components/DropZone';
@@ -98,7 +97,6 @@ const App: React.FC = () => {
   
   // --- Core Game Logic & State Setup ---
 
-  // FIX: Explicitly type `sentences` to avoid a union type that causes issues with property access later.
   const sentences = useMemo<SentenceWithOptions[]>(
     () => assignment?.sentences ?? defaultSentences.map(s => ({ text: s })),
     [assignment]
