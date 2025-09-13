@@ -39,7 +39,8 @@ const TeacherPanel: React.FC = () => {
     };
     
     const hash = encodeAssignmentToHash(assignment);
-    const link = `${window.location.origin}${window.location.pathname}#A=${hash}`;
+    const base = window.location.href.split('#')[0];
+    const link = `${base}#A=${hash}`;
     setGeneratedLink(link);
     setCopySuccess('');
   };
