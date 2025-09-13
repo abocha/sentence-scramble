@@ -14,7 +14,9 @@ const DEFAULT_LOCKED_PHRASES = [
 
 export const tokenizeSentence = (sentence: string, lockedPhrases: string[] = []): string[] => {
   // Merge the default phrasal verbs with any teacher-provided locked phrases.
-  const allLocked = [...DEFAULT_LOCKED_PHRASES, ...lockedPhrases];
+  // Normalize to lowercase for case-insensitive comparison while preserving
+  // the original casing in the returned tokens.
+  const allLocked = [...DEFAULT_LOCKED_PHRASES, ...lockedPhrases].map(p => p.toLowerCase());
 
   // Create a regex that matches any of the locked phrases.
   // We sort by length descending to match longer phrases first (e.g., "in spite of" before "spite of").
@@ -23,7 +25,7 @@ export const tokenizeSentence = (sentence: string, lockedPhrases: string[] = [])
   // This regex will find either a locked phrase or a sequence of non-space characters (a word).
   // It handles punctuation attached to words correctly.
   const lockPattern = sortedLocked.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
-  const pattern = lockPattern ? new RegExp(`(${lockPattern})|\\S+`, 'g') : /\S+/g;
+  const pattern = lockPattern ? new RegExp(`(${lockPattern})|\\S+`, 'gi') : /\S+/gi;
 
   return sentence.match(pattern) || [];
 };
