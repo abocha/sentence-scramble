@@ -93,7 +93,8 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
     if (mode === 'practice' || (mode === 'homework' && progress)) {
       setupNewSentence(currentSentenceIndex);
     }
-  }, [currentSentenceIndex, setupNewSentence, mode, progress]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSentenceIndex, setupNewSentence, mode]);
 
   const startNewAttempt = () => {
     if (!assignment) return;
@@ -106,6 +107,7 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
     };
     setProgress(initialProgress);
     setCurrentSentenceIndex(0);
+    setupNewSentence(0);
     setShowResumePrompt(false);
   };
 
