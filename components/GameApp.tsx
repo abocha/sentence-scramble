@@ -350,17 +350,17 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
               <>
                 {mode === 'homework' && (
                   <>
-                    <button onClick={handleUndo} className="w-full sm:w-auto px-6 py-3 bg-gray-500 text-white font-bold rounded-lg shadow-md hover:bg-gray-600 transition-colors">Undo</button>
-                    <button onClick={() => setupNewSentence()} className="w-full sm:w-auto px-6 py-3 bg-yellow-500 text-white font-bold rounded-lg shadow-md hover:bg-yellow-600 transition-colors">Reset</button>
+                    <button type="button" onClick={handleUndo} className="w-full sm:w-auto px-6 py-3 bg-gray-500 text-white font-bold rounded-lg shadow-md hover:bg-gray-600 transition-colors">Undo</button>
+                    <button type="button" onClick={() => setupNewSentence()} className="w-full sm:w-auto px-6 py-3 bg-yellow-500 text-white font-bold rounded-lg shadow-md hover:bg-yellow-600 transition-colors">Reset</button>
                   </>
                 )}
-                <button onClick={handleCheckAnswer} disabled={userSentence.length === 0} className="w-full sm:w-auto px-8 py-3 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 disabled:bg-gray-400 transition-all transform hover:scale-105">Check Answer</button>
+                <button type="button" onClick={handleCheckAnswer} disabled={userSentence.length === 0} className="w-full sm:w-auto px-8 py-3 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 disabled:bg-gray-400 transition-all transform hover:scale-105">Check Answer</button>
                 {mode === 'homework' && (
-                  <button onClick={handleReveal} className="w-full sm:w-auto px-6 py-3 bg-red-600 text-white font-bold rounded-lg shadow-md hover:bg-red-700 transition-colors">Reveal</button>
+                  <button type="button" onClick={handleReveal} className="w-full sm:w-auto px-6 py-3 bg-red-600 text-white font-bold rounded-lg shadow-md hover:bg-red-700 transition-colors">Reveal</button>
                 )}
               </>
             ) : (
-              <button onClick={handleNext} className="w-full sm:w-auto px-8 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition-all transform hover:scale-105">
+              <button type="button" onClick={handleNext} className="w-full sm:w-auto px-8 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition-all transform hover:scale-105">
                 {currentSentenceIndex < sentences.length - 1 ? 'Next Sentence' : (mode === 'homework' ? 'Finish & See Results' : 'Next Sentence')}
               </button>
             )}

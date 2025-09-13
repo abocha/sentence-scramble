@@ -12,12 +12,14 @@ const ResumePrompt: React.FC<ResumePromptProps> = ({ onResume, onStartOver }) =>
       <p className="text-gray-600 mb-6">We found a previous attempt in progress. What would you like to do?</p>
       <div className="flex gap-4">
         <button
+          type="button"
           onClick={onResume}
           className="px-8 py-3 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition-all transform hover:scale-105"
         >
           Resume
         </button>
         <button
+          type="button"
           onClick={onStartOver}
           className="px-8 py-3 bg-gray-300 text-gray-800 font-bold rounded-lg shadow-sm hover:bg-gray-400 transition-colors"
         >
