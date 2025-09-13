@@ -83,6 +83,7 @@ export const needsChunking = (text: string): boolean => {
 const splitIntoSentences = (text: string): string[] => {
   const matches = text.match(/[^.!?…]+(?:\.\.\.|[.!?…])?/g);
   return matches ? matches.map(s => s.trim()).filter(Boolean) : [text.trim()];
+
 };
 
 // Merge consecutive capitalized tokens to avoid splitting proper names.

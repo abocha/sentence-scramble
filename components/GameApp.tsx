@@ -126,7 +126,6 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
           setAvailableWords(finalWords);
           setUserSentence([]);
         }
-
       setIsLoading(false);
     }, 300);
   }, [sentences, currentSentenceIndex, assignment]);
@@ -207,6 +206,7 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
         const newHistory = [...prev, { available: [...availableWords], sentence: [...userSentence] }];
         return newHistory.length > HISTORY_LIMIT ? newHistory.slice(1) : newHistory;
       });
+
     if (sourceZoneId === 'available-words') {
       setAvailableWords(prev => prev.filter(w => w.id !== wordId));
       setUserSentence(prev => [...prev, word]);
@@ -252,6 +252,7 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
       ].map(c => c.trim().toLowerCase());
       const target = currentChunks.map(c => c.trim().toLowerCase());
       isCorrect = assembled.join('|') === target.join('|');
+
     } else {
       const userAnswer = userSentence.map(w => w.text).join(' ').trim();
       isCorrect = userAnswer === correctSentenceText;
