@@ -5,15 +5,16 @@ interface WordButtonProps {
   word: Word;
   onDragStart: (e: React.DragEvent<HTMLDivElement>, wordId: string) => void;
   onClick?: (wordId: string) => void;
+  draggable?: boolean;
 }
 
-const WordButton: React.FC<WordButtonProps> = ({ word, onDragStart, onClick }) => {
+const WordButton: React.FC<WordButtonProps> = ({ word, onDragStart, onClick, draggable = true }) => {
   return (
     <div
-      draggable
-      onDragStart={(e) => onDragStart(e, word.id)}
+      draggable={draggable}
+      onDragStart={draggable ? (e) => onDragStart(e, word.id) : undefined}
       onClick={() => onClick?.(word.id)}
-      className="px-4 py-2 bg-white border-2 border-gray-300 rounded-lg shadow-sm cursor-pointer cursor-grab active:cursor-grabbing hover:bg-blue-100 hover:border-blue-400 transition-all duration-150 select-none"
+      className={`px-4 py-2 bg-white border-2 border-gray-300 rounded-lg shadow-sm select-none ${draggable ? 'cursor-pointer cursor-grab active:cursor-grabbing hover:bg-blue-100 hover:border-blue-400' : 'opacity-60 cursor-default'}`}
     >
       {word.text}
     </div>

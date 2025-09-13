@@ -12,5 +12,16 @@ describe('chunkSentence', () => {
       'in the morning.'
     ]);
   });
+
+  it('processes multiple sentences separately', () => {
+    const text = 'Short one. This second sentence is considerably longer and should be split into manageable chunks, keeping things clear. Last bit.';
+    expect(chunkSentence(text)).toEqual([
+      'Short one.',
+      'This second sentence is considerably longer and should be',
+      'split into manageable chunks,',
+      'keeping things clear.',
+      'Last bit.'
+    ]);
+  });
 });
 
