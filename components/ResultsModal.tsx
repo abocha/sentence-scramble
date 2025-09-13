@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Assignment, StudentProgress } from '../types';
 
 interface ResultsModalProps {
@@ -9,6 +9,8 @@ interface ResultsModalProps {
 const ResultsModal: React.FC<ResultsModalProps> = ({ assignment, progress }) => {
   const { summary, student, results } = progress;
   const score = `${summary.correct}/${summary.total}`;
+  const [copyMessage, setCopyMessage] = useState<string | null>(null);
+  const [isError, setIsError] = useState(false);
 
   const generateShareText = () => {
     const items = results.map(r => {
@@ -28,7 +30,22 @@ ID: ${assignment.id.split('-')[1]}`;
   const encodedText = encodeURIComponent(shareText);
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(shareText).then(() => alert('Results copied to clipboard!'));
+    if (!navigator.clipboard) {
+      setCopyMessage('Clipboard not supported');
+      setIsError(true);
+      return;
+    }
+
+    navigator.clipboard
+      .writeText(shareText)
+      .then(() => {
+        setCopyMessage('Results copied to clipboard!');
+        setIsError(false);
+      })
+      .catch(() => {
+        setCopyMessage('Failed to copy results');
+        setIsError(true);
+      });
   };
 
   return (
@@ -61,10 +78,43 @@ ID: ${assignment.id.split('-')[1]}`;
       <div className="mt-8 w-full max-w-sm">
         <h3 className="font-semibold text-lg mb-3">Send Results to Teacher</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <button onClick={copyToClipboard} className="p-3 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors">Copy Results</button>
-          <a href={`mailto:?subject=Homework Results: ${encodeURIComponent(assignment.title)}&body=${encodedText}`} className="p-3 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-colors block">Email</a>
-          <a href={`https://wa.me/?text=${encodedText}`} target="_blank" rel="noopener noreferrer" className="p-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors block">WhatsApp</a>
-          <a href={`https://t.me/share/url?url= &text=${encodedText}`} target="_blank" rel="noopener noreferrer" className="p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors block">Telegram</a>
+          <div>
+            <button
+              onClick={copyToClipboard}
+              className="p-3 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors"
+            >
+              Copy Results
+            </button>
+            {copyMessage && (
+              <p
+                className={`mt-2 text-sm ${isError ? 'text-red-600' : 'text-green-600'}`}
+              >
+                {copyMessage}
+              </p>
+            )}
+          </div>
+          <a
+            href={`mailto:?subject=Homework Results: ${encodeURIComponent(assignment.title)}&body=${encodedText}`}
+            className="p-3 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-colors block"
+          >
+            Email
+          </a>
+          <a
+            href={`https://wa.me/?text=${encodedText}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors block"
+          >
+            WhatsApp
+          </a>
+          <a
+            href={`https://t.me/share/url?url= &text=${encodedText}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors block"
+          >
+            Telegram
+          </a>
         </div>
       </div>
     </div>
