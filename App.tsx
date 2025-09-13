@@ -46,6 +46,10 @@ const App: React.FC = () => {
         if (loadedAssignment) {
           setAssignment(loadedAssignment);
           setMode('homework');
+        } else {
+          // Explicit fallback if parsing fails
+          setAssignment(null);
+          setMode('practice');
         }
       } else if (hash === '#teacher') {
         setMode('teacher');
