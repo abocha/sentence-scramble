@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { Assignment, StudentProgress } from '../types';
+import { computeSummary } from '../utils/summary';
 
 interface ResultsModalProps {
   assignment: Assignment;
@@ -9,6 +10,7 @@ interface ResultsModalProps {
 const ResultsModal: React.FC<ResultsModalProps> = ({ assignment, progress }) => {
   const { summary, student, results } = progress;
   const score = `${summary.solvedWithinMax}/${summary.total}`;
+
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
 
@@ -61,10 +63,13 @@ ID: ${shareId}`;
       <div className="text-5xl font-bold my-4">
         {score}
         <span className="text-2xl font-medium text-gray-600"> solved</span>
+
       </div>
-      
-      <div className="my-4 text-gray-500">
-        {summary.reveals > 0 && <span>({summary.reveals} revealed)</span>}
+      <div className="my-2 text-gray-700">
+        First-try: {summary.firstTry} / {summary.total} • Reveals: {summary.reveals}
+      </div>
+      <div className="text-sm text-gray-500 mb-4">
+        Avg attempts (solved): {summary.avgAttempts.toFixed(2)}
       </div>
 
       <div className="flex flex-wrap gap-2 justify-center my-4">

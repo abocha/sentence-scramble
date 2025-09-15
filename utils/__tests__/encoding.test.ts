@@ -10,7 +10,8 @@ describe('encoding utilities', () => {
       version: 1,
       seed: 'seed',
       options: {
-        attempts: 'unlimited',
+        attemptsPerItem: 'unlimited',
+        revealAnswerAfterMaxAttempts: true,
         hints: 'none',
         feedback: 'show-on-wrong',
         scramble: 'seeded',
@@ -33,7 +34,8 @@ describe('encoding utilities', () => {
       version: 1,
       seed: 'seed',
       options: {
-        attempts: 'unlimited',
+        attemptsPerItem: 'unlimited',
+        revealAnswerAfterMaxAttempts: true,
         hints: 'none',
         feedback: 'show-on-wrong',
         scramble: 'seeded',
