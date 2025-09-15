@@ -76,14 +76,21 @@ const DropZone: React.FC<DropZoneProps> = ({
 
       const draggableElements = [
         ...container.querySelectorAll('[draggable="true"]'),
-      ];
-      let closest = { offset: Number.NEGATIVE_INFINITY, index: words.length };
+      ] as HTMLElement[];
+      let closest = { distance: Number.POSITIVE_INFINITY, index: words.length };
 
       draggableElements.forEach((child, index) => {
         const box = child.getBoundingClientRect();
-        const offset = e.clientX - box.left - box.width / 2;
-        if (offset < 0 && offset > closest.offset) {
-          closest = { offset: offset, index: index };
+        const centerX = box.left + box.width / 2;
+        const centerY = box.top + box.height / 2;
+        const dx = e.clientX - centerX;
+        const dy = e.clientY - centerY;
+        const distance = Math.hypot(dx, dy);
+        if (distance < closest.distance) {
+          closest = {
+            distance,
+            index: e.clientX < centerX ? index : index + 1,
+          };
         }
       });
 
@@ -126,14 +133,21 @@ const DropZone: React.FC<DropZoneProps> = ({
         if (isSentenceZone) {
           const draggableElements = [
             ...container.querySelectorAll('[draggable="true"]'),
-          ];
-          let closest = { offset: Number.NEGATIVE_INFINITY, index: words.length };
+          ] as HTMLElement[];
+          let closest = { distance: Number.POSITIVE_INFINITY, index: words.length };
 
           draggableElements.forEach((child, index) => {
-            const box = (child as HTMLElement).getBoundingClientRect();
-            const offset = touch.clientX - box.left - box.width / 2;
-            if (offset < 0 && offset > closest.offset) {
-              closest = { offset: offset, index: index };
+            const box = child.getBoundingClientRect();
+            const centerX = box.left + box.width / 2;
+            const centerY = box.top + box.height / 2;
+            const dx = touch.clientX - centerX;
+            const dy = touch.clientY - centerY;
+            const distance = Math.hypot(dx, dy);
+            if (distance < closest.distance) {
+              closest = {
+                distance,
+                index: touch.clientX < centerX ? index : index + 1,
+              };
             }
           });
 
