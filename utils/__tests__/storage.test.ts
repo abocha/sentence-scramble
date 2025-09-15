@@ -9,6 +9,7 @@ describe('saveProgress', () => {
     version: 1,
     student: { name: 'Alice' },
     summary: { correct: 0, total: 1, reveals: 0 },
+    attemptsUsed: 0,
     results: []
   };
 
@@ -47,6 +48,7 @@ describe('loadProgress', () => {
     version: 1,
     student: { name: 'Alice' },
     summary: { correct: 0, total: 1, reveals: 0 },
+    attemptsUsed: 0,
     results: []
   };
 

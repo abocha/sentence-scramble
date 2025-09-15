@@ -35,6 +35,7 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
   const [history, setHistory] = useState<Array<{ available: Word[]; sentence: Word[] }>>([]);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [attemptsUsed, setAttemptsUsed] = useState(0);
 
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -51,6 +52,7 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
       setStudentName(savedName);
       const storageKey = `ss::${assignment.id}::${savedName}`;
       const savedProgress = loadProgress(storageKey);
+      setAttemptsUsed(savedProgress?.attemptsUsed ?? 0);
       if (savedProgress && savedProgress.results.length > 0) {
         setProgress(savedProgress);
         setShowResumePrompt(true);
@@ -145,14 +147,18 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
 
   const startNewAttempt = () => {
     if (!assignment) return;
-    const initialProgress = {
+    const initialProgress: StudentProgress = {
       assignmentId: assignment.id,
       version: assignment.version,
       student: { name: studentName },
       summary: { correct: 0, total: assignment.sentences.length, reveals: 0 },
+      attemptsUsed: 0,
       results: []
     };
     setProgress(initialProgress);
+    const storageKey = `ss::${assignment.id}::${studentName}`;
+    saveProgress(storageKey, initialProgress);
+    setAttemptsUsed(0);
     setCurrentSentenceIndex(0);
     setupNewSentence(0);
     setShowResumePrompt(false);
@@ -284,9 +290,11 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
         ...progress.summary,
         correct: progress.summary.correct + (result.ok ? 1 : 0),
         reveals: progress.summary.reveals + (result.revealed ? 1 : 0)
-      }
+      },
+      attemptsUsed: 0
     };
     setProgress(newProgress);
+    setAttemptsUsed(0);
     const storageKey = `ss::${assignment.id}::${studentName}`;
     saveProgress(storageKey, newProgress);
   };
@@ -304,7 +312,18 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
     }
 
     if (mode === 'homework') {
-      updateProgress({ index: currentSentenceIndex, ok: isCorrect, revealed: false });
+      if (isCorrect) {
+        updateProgress({ index: currentSentenceIndex, ok: true, revealed: false });
+      } else {
+        const newAttempts = attemptsUsed + 1;
+        setAttemptsUsed(newAttempts);
+        if (progress && assignment) {
+          const storageKey = `ss::${assignment.id}::${studentName}`;
+          const newProgress = { ...progress, attemptsUsed: newAttempts };
+          setProgress(newProgress);
+          saveProgress(storageKey, newProgress);
+        }
+      }
     }
 
     setFeedback({

@@ -49,5 +49,6 @@ export interface StudentProgress {
     total: number;
     reveals: number;
   };
+  attemptsUsed: number;
   results: Result[];
 }
