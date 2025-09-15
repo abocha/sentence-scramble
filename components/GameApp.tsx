@@ -87,6 +87,7 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
     setAttemptsUsed(0);
     setHasRevealed(false);
 
+
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
       const sentenceConf = sentences[index];
@@ -299,7 +300,6 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
   const handleCheckAnswer = () => {
     const attempts = attemptsUsed + 1;
     setAttemptsUsed(attempts);
-
     let isCorrect = false;
 
     if (isChunkMode && currentChunks) {

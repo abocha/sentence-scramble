@@ -18,7 +18,8 @@ export interface SentenceWithOptions {
 }
 
 export interface AssignmentOptions {
-  attempts: 'unlimited' | 'two-then-reveal';
+  attemptsPerItem: number | 'unlimited';
+  revealAnswerAfterMaxAttempts: boolean;
   hints: 'none' | 'first-last' | 'lock';
   feedback: 'show-on-wrong' | 'end-only';
   scramble: 'seeded' | 'random';
