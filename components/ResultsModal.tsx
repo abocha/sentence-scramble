@@ -22,9 +22,11 @@ const ResultsModal: React.FC<ResultsModalProps> = ({ assignment, progress }) => 
     const idParts = assignment.id.split('-');
     const shareId = idParts.length > 1 ? idParts[1] : assignment.id;
 
+    const avgAttempts = (summary.avgAttempts ?? 0).toFixed(2);
+
     return `Homework: ${assignment.title} (v${assignment.version})
 Student: ${student.name || 'N/A'}
-Result: ${score} solved (${summary.reveals} reveals, ${summary.firstTry} first try, avg ${summary.avgAttempts.toFixed(2)} attempts)
+Result: ${score} solved (${summary.reveals} reveals, ${summary.firstTry} first try, avg ${avgAttempts} attempts)
 Items: ${items}
 ID: ${shareId}`;
   };
