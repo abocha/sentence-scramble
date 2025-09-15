@@ -23,6 +23,8 @@ export interface AssignmentOptions {
   hints: 'none' | 'first-last' | 'lock';
   feedback: 'show-on-wrong' | 'end-only';
   scramble: 'seeded' | 'random';
+  attemptsPerItem?: number; // default 3
+  revealAfterMax?: boolean; // default true
 }
 
 export interface Assignment {
@@ -37,7 +39,17 @@ export interface Assignment {
 export interface Result {
   index: number;
   ok: boolean;
+  attempts: number;
   revealed: boolean;
+  attempts: number;
+}
+
+export interface Summary {
+  total: number;
+  solvedWithinMax: number;
+  firstTry: number;
+  reveals: number;
+  avgAttempts: number;
 }
 
 export interface StudentProgress {
@@ -50,5 +62,6 @@ export interface StudentProgress {
     reveals: number;
   };
   attemptsUsed: number;
+
   results: Result[];
 }

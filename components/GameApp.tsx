@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { SENTENCES as defaultSentences } from '../constants/sentences';
 import type { Word, Feedback, Assignment, StudentProgress, Result, SentenceWithOptions } from '../types';
+import { computeSummary } from '../utils/summary';
 import Header from './Header';
 import DropZone from './DropZone';
 import SpinnerIcon from './icons/SpinnerIcon';
@@ -36,7 +37,6 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [attemptsUsed, setAttemptsUsed] = useState(0);
-
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const maxAttempts = assignment?.options.attemptsPerItem;
   const attemptsLimit = typeof maxAttempts === 'number' ? maxAttempts : null;
@@ -86,6 +86,9 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
     setIsLoading(true);
     setFeedback(null);
     setUserSentence([]);
+    setAttemptsUsed(0);
+    setHasRevealed(false);
+
 
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
@@ -286,6 +289,11 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
   // --- Answer Checking & Progression ---
   const updateProgress = (result: Result) => {
     if (!progress || !assignment) return;
+    const maxAttempts = assignment.options.attemptsPerItem ?? 3;
+    const solvedInc = result.ok && result.attempts <= maxAttempts ? 1 : 0;
+    const firstTryInc = result.ok && result.attempts === 1 ? 1 : 0;
+    const totalAttempts = progress.summary.avgAttempts * progress.results.length + result.attempts;
+    const newAvg = totalAttempts / (progress.results.length + 1);
     const newProgress: StudentProgress = {
       ...progress,
       results: [...progress.results, result],
@@ -303,6 +311,8 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
   };
 
   const handleCheckAnswer = () => {
+    const attempts = attemptsUsed + 1;
+    setAttemptsUsed(attempts);
     let isCorrect = false;
     let shouldShowFeedback = true;
 
@@ -351,13 +361,17 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
   };
 
   const handleReveal = () => {
+    setHasRevealed(true);
     if (mode === 'homework') {
-      updateProgress({ index: currentSentenceIndex, ok: false, revealed: true });
+      updateProgress({ index: currentSentenceIndex, ok: false, revealed: true, attempts: 1 });
     }
     setFeedback({ type: 'error', message: `The correct answer is: "${correctSentenceText}"` });
   };
 
   const handleNext = () => {
+    setFeedback(null);
+    setAttemptsUsed(0);
+    setHasRevealed(false);
     const nextIndex = currentSentenceIndex + 1;
     if (nextIndex < sentences.length) {
       setCurrentSentenceIndex(nextIndex);
@@ -412,11 +426,32 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
                 {currentSentenceIndex < sentences.length - 1 ? 'Next Sentence' : (mode === 'homework' ? 'Finish & See Results' : 'Next Sentence')}
               </button>
             )}
+
+            <div className="mt-auto pt-6 flex flex-col sm:flex-row gap-4 justify-center items-center flex-wrap">
+              {isFinalStep ? (
+                <button type="button" onClick={handleNext} className="w-full sm:w-auto px-8 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition-all transform hover:scale-105">
+                  {currentSentenceIndex < sentences.length - 1 ? 'Next Sentence' : (mode === 'homework' ? 'Finish & See Results' : 'Next Sentence')}
+                </button>
+              ) : (
+                <>
+                  {mode === 'homework' && (
+                    <>
+                      <button type="button" onClick={handleUndo} className="w-full sm:w-auto px-6 py-3 bg-gray-500 text-white font-bold rounded-lg shadow-md hover:bg-gray-600 transition-colors">Undo</button>
+                      <button type="button" onClick={() => setupNewSentence()} className="w-full sm:w-auto px-6 py-3 bg-yellow-500 text-white font-bold rounded-lg shadow-md hover:bg-yellow-600 transition-colors">Reset</button>
+                    </>
+                  )}
+                  <button type="button" onClick={handleCheckAnswer} disabled={userSentence.length === 0} className="w-full sm:w-auto px-8 py-3 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 disabled:bg-gray-400 transition-all transform hover:scale-105">Check Answer</button>
+                  {mode === 'homework' && (
+                    <button type="button" onClick={handleReveal} className="w-full sm:w-auto px-6 py-3 bg-red-600 text-white font-bold rounded-lg shadow-md hover:bg-red-700 transition-colors">Reveal</button>
+                  )}
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      )}
-    </>
-  );
+        )}
+      </>
+    );
+  };
 
   return (
     <div className="min-h-screen font-sans text-gray-800 flex flex-col items-center p-4 sm:p-6 md:p-8 bg-gray-100">
