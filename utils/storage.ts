@@ -11,7 +11,12 @@ export const saveProgress = (key: string, data: StudentProgress): void => {
 export const loadProgress = (key: string): StudentProgress | null => {
   try {
     const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : null;
+    if (!data) return null;
+    const parsed = JSON.parse(data);
+    if (typeof parsed.attemptsUsed !== 'number') {
+      parsed.attemptsUsed = 0;
+    }
+    return parsed as StudentProgress;
   } catch (error) {
     console.error("Failed to load progress from localStorage", error);
     return null;
