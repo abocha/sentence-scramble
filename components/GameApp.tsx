@@ -35,8 +35,12 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
   const [history, setHistory] = useState<Array<{ available: Word[]; sentence: Word[] }>>([]);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [attemptsUsed, setAttemptsUsed] = useState(0);
 
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const maxAttempts = assignment?.options.attemptsPerItem;
+  const attemptsLimit = typeof maxAttempts === 'number' ? maxAttempts : null;
+  const outOfAttempts = mode === 'homework' && attemptsLimit !== null && attemptsUsed >= attemptsLimit;
 
   // --- Effects for Initialization and Mode Switching ---
   useEffect(() => {
@@ -51,6 +55,7 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
       setStudentName(savedName);
       const storageKey = `ss::${assignment.id}::${savedName}`;
       const savedProgress = loadProgress(storageKey);
+      setAttemptsUsed(savedProgress?.attemptsUsed ?? 0);
       if (savedProgress && savedProgress.results.length > 0) {
         setProgress(savedProgress);
         setShowResumePrompt(true);
@@ -145,14 +150,18 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
 
   const startNewAttempt = () => {
     if (!assignment) return;
-    const initialProgress = {
+    const initialProgress: StudentProgress = {
       assignmentId: assignment.id,
       version: assignment.version,
       student: { name: studentName },
       summary: { correct: 0, total: assignment.sentences.length, reveals: 0 },
+      attemptsUsed: 0,
       results: []
     };
     setProgress(initialProgress);
+    const storageKey = `ss::${assignment.id}::${studentName}`;
+    saveProgress(storageKey, initialProgress);
+    setAttemptsUsed(0);
     setCurrentSentenceIndex(0);
     setupNewSentence(0);
     setShowResumePrompt(false);
@@ -284,9 +293,11 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
         ...progress.summary,
         correct: progress.summary.correct + (result.ok ? 1 : 0),
         reveals: progress.summary.reveals + (result.revealed ? 1 : 0)
-      }
+      },
+      attemptsUsed: 0
     };
     setProgress(newProgress);
+    setAttemptsUsed(0);
     const storageKey = `ss::${assignment.id}::${studentName}`;
     saveProgress(storageKey, newProgress);
   };
@@ -304,7 +315,26 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
     }
 
     if (mode === 'homework') {
-      updateProgress({ index: currentSentenceIndex, ok: isCorrect, revealed: false });
+      if (isCorrect) {
+        updateProgress({ index: currentSentenceIndex, ok: true, revealed: false });
+      } else {
+        const newAttempts = attemptsUsed + 1;
+        setAttemptsUsed(newAttempts);
+        if (progress && assignment) {
+          const storageKey = `ss::${assignment.id}::${studentName}`;
+          const newProgress = { ...progress, attemptsUsed: newAttempts };
+          setProgress(newProgress);
+          saveProgress(storageKey, newProgress);
+        }
+        if (attemptsLimit !== null && newAttempts >= attemptsLimit) {
+          if (assignment?.options.revealAnswerAfterMaxAttempts) {
+            handleReveal();
+            return;
+          } else {
+            updateProgress({ index: currentSentenceIndex, ok: false, revealed: false });
+          }
+        }
+      }
     }
 
     setFeedback({
@@ -365,7 +395,7 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
                     <button type="button" onClick={() => setupNewSentence()} className="w-full sm:w-auto px-6 py-3 bg-yellow-500 text-white font-bold rounded-lg shadow-md hover:bg-yellow-600 transition-colors">Reset</button>
                   </>
                 )}
-                <button type="button" onClick={handleCheckAnswer} disabled={userSentence.length === 0} className="w-full sm:w-auto px-8 py-3 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 disabled:bg-gray-400 transition-all transform hover:scale-105">Check Answer</button>
+                <button type="button" onClick={handleCheckAnswer} disabled={userSentence.length === 0 || outOfAttempts} className="w-full sm:w-auto px-8 py-3 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 disabled:bg-gray-400 transition-all transform hover:scale-105">Check Answer</button>
                 {mode === 'homework' && (
                   <button type="button" onClick={handleReveal} className="w-full sm:w-auto px-6 py-3 bg-red-600 text-white font-bold rounded-lg shadow-md hover:bg-red-700 transition-colors">Reveal</button>
                 )}
