@@ -36,6 +36,7 @@ export interface Assignment {
 export interface Result {
   index: number;
   ok: boolean;
+  attempts: number;
   revealed: boolean;
 }
 
