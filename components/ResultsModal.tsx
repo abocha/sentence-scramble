@@ -8,8 +8,9 @@ interface ResultsModalProps {
 }
 
 const ResultsModal: React.FC<ResultsModalProps> = ({ assignment, progress }) => {
-  const { student, results } = progress;
-  const summary = computeSummary(results);
+  const { summary, student, results } = progress;
+  const score = `${summary.solvedWithinMax}/${summary.total}`;
+
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
 
@@ -23,11 +24,11 @@ const ResultsModal: React.FC<ResultsModalProps> = ({ assignment, progress }) => 
     const idParts = assignment.id.split('-');
     const shareId = idParts.length > 1 ? idParts[1] : assignment.id;
 
+    const avgAttempts = (summary.avgAttempts ?? 0).toFixed(2);
+
     return `Homework: ${assignment.title} (v${assignment.version})
 Student: ${student.name || 'N/A'}
-Solved: ${summary.solved} / ${summary.total}
-First-try: ${summary.firstTry} / ${summary.total} • Reveals: ${summary.reveals}
-Avg attempts (solved): ${summary.avgAttempts.toFixed(2)}
+Result: ${score} solved (${summary.reveals} reveals, ${summary.firstTry} first try, avg ${avgAttempts} attempts)
 Items: ${items}
 ID: ${shareId}`;
   };
@@ -60,7 +61,9 @@ ID: ${shareId}`;
       <p className="text-lg text-gray-700 mb-4">Here are your results for "{assignment.title}".</p>
       
       <div className="text-5xl font-bold my-4">
-        Solved: {summary.solved} / {summary.total}
+        {score}
+        <span className="text-2xl font-medium text-gray-600"> solved</span>
+
       </div>
       <div className="my-2 text-gray-700">
         First-try: {summary.firstTry} / {summary.total} • Reveals: {summary.reveals}

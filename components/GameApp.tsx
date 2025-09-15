@@ -156,7 +156,7 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
       assignmentId: assignment.id,
       version: assignment.version,
       student: { name: studentName },
-      summary: { total: assignment.sentences.length, solved: 0, firstTry: 0, reveals: 0, avgAttempts: 0 },
+      summary: { total: assignment.sentences.length, solvedWithinMax: 0, firstTry: 0, reveals: 0, avgAttempts: 0 },
       results: []
     };
     setProgress(initialProgress);
@@ -284,13 +284,21 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
   // --- Answer Checking & Progression ---
   const updateProgress = (result: Result) => {
     if (!progress || !assignment) return;
-    const newResults = [...progress.results, result];
-    const newSummary = computeSummary(newResults);
-    newSummary.total = assignment.sentences.length;
+    const maxAttempts = assignment.options.attemptsPerItem ?? 3;
+    const solvedInc = result.ok && result.attempts <= maxAttempts ? 1 : 0;
+    const firstTryInc = result.ok && result.attempts === 1 ? 1 : 0;
+    const totalAttempts = progress.summary.avgAttempts * progress.results.length + result.attempts;
+    const newAvg = totalAttempts / (progress.results.length + 1);
     const newProgress: StudentProgress = {
       ...progress,
-      results: newResults,
-      summary: newSummary
+      results: [...progress.results, result],
+      summary: {
+        total: progress.summary.total,
+        solvedWithinMax: progress.summary.solvedWithinMax + solvedInc,
+        firstTry: progress.summary.firstTry + firstTryInc,
+        reveals: progress.summary.reveals + (result.revealed ? 1 : 0),
+        avgAttempts: newAvg
+      }
     };
     setProgress(newProgress);
     const storageKey = `ss::${assignment.id}::${studentName}`;
@@ -311,35 +319,15 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
       isCorrect = userAnswer === correctSentenceText;
     }
 
-    if (isCorrect) {
-      if (mode === 'homework') {
-        updateProgress({ index: currentSentenceIndex, ok: true, attempts, revealed: false });
-      }
-      setFeedback({ type: 'success', message: 'Correct! Well done!' });
-    } else {
-      if (maxAttempts === Infinity) {
-        if (mode === 'homework') {
-          updateProgress({ index: currentSentenceIndex, ok: false, attempts, revealed: true });
-        }
-        setHasRevealed(true);
-        setFeedback({ type: 'error', message: `The correct answer is: "${correctSentenceText}"` });
-      } else if (attempts < maxAttempts) {
-        setFeedback({ type: 'error', message: 'Not quite. Try again!' });
-      } else {
-        if (mode === 'homework') {
-          updateProgress({ index: currentSentenceIndex, ok: false, attempts: maxAttempts, revealed: true });
-        }
-        setHasRevealed(true);
-        setFeedback({ type: 'error', message: `The correct answer is: "${correctSentenceText}"` });
-      }
+    if (mode === 'homework') {
+      updateProgress({ index: currentSentenceIndex, ok: isCorrect, revealed: false, attempts: 1 });
     }
   };
 
   const handleReveal = () => {
     setHasRevealed(true);
     if (mode === 'homework') {
-      updateProgress({ index: currentSentenceIndex, ok: false, attempts: attemptsUsed, revealed: true });
-
+      updateProgress({ index: currentSentenceIndex, ok: false, revealed: true, attempts: 1 });
     }
     setFeedback({ type: 'error', message: `The correct answer is: "${correctSentenceText}"` });
   };

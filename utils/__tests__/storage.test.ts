@@ -8,7 +8,7 @@ describe('saveProgress', () => {
     assignmentId: 'a1',
     version: 1,
     student: { name: 'Alice' },
-    summary: { total: 1, solved: 0, firstTry: 0, reveals: 0, avgAttempts: 0 },
+    summary: { total: 1, solvedWithinMax: 0, firstTry: 0, reveals: 0, avgAttempts: 0 },
     results: []
   };
 
@@ -25,6 +25,7 @@ describe('saveProgress', () => {
     errorSpy.mockRestore();
     delete (globalThis as any).localStorage;
   });
+
 
   it('logs error when localStorage throws', () => {
     const setItem = vi.fn(() => { throw new Error('fail'); });
@@ -46,7 +47,7 @@ describe('loadProgress', () => {
     assignmentId: 'a1',
     version: 1,
     student: { name: 'Alice' },
-    summary: { total: 1, solved: 0, firstTry: 0, reveals: 0, avgAttempts: 0 },
+    summary: { total: 1, solvedWithinMax: 0, firstTry: 0, reveals: 0, avgAttempts: 0 },
     results: []
   };
 
@@ -62,6 +63,31 @@ describe('loadProgress', () => {
     expect(errorSpy).not.toHaveBeenCalled();
 
     errorSpy.mockRestore();
+    delete (globalThis as any).localStorage;
+  });
+
+  it('defaults missing summary fields for legacy data', () => {
+    const legacy = {
+      assignmentId: 'a1',
+      version: 1,
+      student: { name: 'Alice' },
+      summary: { correct: 1, total: 2, reveals: 0 },
+      results: [],
+    };
+
+    const getItem = vi.fn(() => JSON.stringify(legacy));
+    (globalThis as any).localStorage = { getItem };
+
+    const result = loadProgress(key);
+
+    expect(result?.summary).toEqual({
+      total: 2,
+      solvedWithinMax: 1,
+      firstTry: 0,
+      reveals: 0,
+      avgAttempts: 0,
+    });
+
     delete (globalThis as any).localStorage;
   });
 
