@@ -37,16 +37,21 @@ export interface Result {
   index: number;
   ok: boolean;
   revealed: boolean;
+  attempts: number;
+}
+
+export interface Summary {
+  total: number;
+  solved: number;
+  firstTry: number;
+  reveals: number;
+  avgAttempts: number;
 }
 
 export interface StudentProgress {
   assignmentId: string;
   version: number;
   student: { name: string };
-  summary: {
-    correct: number;
-    total: number;
-    reveals: number;
-  };
+  summary: Summary;
   results: Result[];
 }
