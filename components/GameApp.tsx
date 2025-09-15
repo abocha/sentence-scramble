@@ -304,6 +304,7 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
 
   const handleCheckAnswer = () => {
     let isCorrect = false;
+    let shouldShowFeedback = true;
 
     if (isChunkMode && currentChunks) {
       const userChunks = userSentence.map(w => w.text.trim().toLowerCase());
@@ -333,14 +334,20 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
           } else {
             updateProgress({ index: currentSentenceIndex, ok: false, revealed: false });
           }
+        } else {
+          shouldShowFeedback = false;
         }
       }
     }
 
-    setFeedback({
-      type: isCorrect ? 'success' : 'error',
-      message: isCorrect ? 'Correct! Well done!' : `Not quite. The correct answer is: "${correctSentenceText}"`,
-    });
+    if (shouldShowFeedback) {
+      setFeedback({
+        type: isCorrect ? 'success' : 'error',
+        message: isCorrect ? 'Correct! Well done!' : `Not quite. The correct answer is: "${correctSentenceText}"`,
+      });
+    } else {
+      setFeedback(null);
+    }
   };
 
   const handleReveal = () => {
