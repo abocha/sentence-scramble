@@ -317,7 +317,13 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
       }
       setFeedback({ type: 'success', message: 'Correct! Well done!' });
     } else {
-      if (attempts < maxAttempts) {
+      if (maxAttempts === Infinity) {
+        if (mode === 'homework') {
+          updateProgress({ index: currentSentenceIndex, ok: false, attempts, revealed: true });
+        }
+        setHasRevealed(true);
+        setFeedback({ type: 'error', message: `The correct answer is: "${correctSentenceText}"` });
+      } else if (attempts < maxAttempts) {
         setFeedback({ type: 'error', message: 'Not quite. Try again!' });
       } else {
         if (mode === 'homework') {
