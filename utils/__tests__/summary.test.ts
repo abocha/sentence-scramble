@@ -21,4 +21,13 @@ describe('computeSummary', () => {
     expect(summary.reveals).toBe(1);
     expect(summary.avgAttempts).toBeCloseTo(1.5);
   });
+
+  it('defaults missing attempts to 1', () => {
+    const results = [
+      { index: 0, ok: true, revealed: false, attempts: 2 },
+      { index: 1, ok: true, revealed: false } as any,
+    ] as Result[];
+    const summary = computeSummary(results);
+    expect(summary.avgAttempts).toBeCloseTo(1.5);
+  });
 });
