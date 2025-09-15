@@ -1,7 +1,14 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import type { Word } from "../types";
 import WordButton from "./WordButton";
 import DropIndicator from "./DropIndicator";
+
+interface TouchDragData {
+  wordId: string;
+  sourceZoneId: string;
+}
+
+let touchDragData: TouchDragData | null = null;
 
 interface DropZoneProps {
   id: string;
@@ -43,6 +50,20 @@ const DropZone: React.FC<DropZoneProps> = ({
     setIsDragOver(false);
     setDropIndex(null);
   };
+
+  const handleTouchStart = (
+    e: React.TouchEvent<HTMLDivElement>,
+    wordId: string,
+  ) => {
+    touchDragData = { wordId, sourceZoneId: id };
+    setTimeout(() => setIsDragging(true), 0);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.preventDefault();
+  };
+
+  const handleTouchEnd = () => {};
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -87,6 +108,75 @@ const DropZone: React.FC<DropZoneProps> = ({
     setDropIndex(null);
   };
 
+  useEffect(() => {
+    const handleWindowTouchMove = (e: TouchEvent) => {
+      if (!touchDragData) return;
+      const touch = e.touches[0];
+      const container = containerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const within =
+        touch.clientX >= rect.left &&
+        touch.clientX <= rect.right &&
+        touch.clientY >= rect.top &&
+        touch.clientY <= rect.bottom;
+
+      if (within) {
+        setIsDragOver(true);
+        if (isSentenceZone) {
+          const draggableElements = [
+            ...container.querySelectorAll('[draggable="true"]'),
+          ];
+          let closest = { offset: Number.NEGATIVE_INFINITY, index: words.length };
+
+          draggableElements.forEach((child, index) => {
+            const box = (child as HTMLElement).getBoundingClientRect();
+            const offset = touch.clientX - box.left - box.width / 2;
+            if (offset < 0 && offset > closest.offset) {
+              closest = { offset: offset, index: index };
+            }
+          });
+
+          setDropIndex(closest.index);
+        }
+      } else {
+        setIsDragOver(false);
+        setDropIndex(null);
+      }
+    };
+
+    const handleWindowTouchEnd = (e: TouchEvent) => {
+      if (!touchDragData) return;
+      const touch = e.changedTouches[0];
+      const container = containerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const within =
+        touch.clientX >= rect.left &&
+        touch.clientX <= rect.right &&
+        touch.clientY >= rect.top &&
+        touch.clientY <= rect.bottom;
+
+      if (within) {
+        const { wordId, sourceZoneId } = touchDragData;
+        onDrop(wordId, sourceZoneId, isSentenceZone ? dropIndex ?? undefined : undefined);
+      }
+
+      setIsDragOver(false);
+      setDropIndex(null);
+      setIsDragging(false);
+      touchDragData = null;
+    };
+
+    window.addEventListener("touchmove", handleWindowTouchMove, { passive: false });
+    window.addEventListener("touchend", handleWindowTouchEnd);
+
+    return () => {
+      window.removeEventListener("touchmove", handleWindowTouchMove);
+      window.removeEventListener("touchend", handleWindowTouchEnd);
+    };
+  }, [isSentenceZone, onDrop, words, dropIndex, setIsDragging]);
+
   const baseClasses =
     "w-full min-h-[100px] p-4 rounded-lg border-2 border-dashed transition-all duration-200";
   const stateClasses =
@@ -125,6 +215,9 @@ const DropZone: React.FC<DropZoneProps> = ({
               <WordButton
                 word={word}
                 onDragStart={handleDragStart}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
                 onClick={onWordClick}
               />
             </React.Fragment>
