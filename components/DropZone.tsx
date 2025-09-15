@@ -65,6 +65,52 @@ const DropZone: React.FC<DropZoneProps> = ({
 
   const handleTouchEnd = () => {};
 
+  const calculateDropIndex = (
+    clientX: number,
+    clientY: number,
+    container: HTMLDivElement,
+  ): number => {
+    const draggableElements = [
+      ...container.querySelectorAll('[draggable="true"]'),
+    ] as HTMLElement[];
+    if (draggableElements.length === 0) return words.length;
+
+    const rowsMap = new Map<number, { el: HTMLElement; index: number }[]>();
+    draggableElements.forEach((el, index) => {
+      const top = el.offsetTop;
+      const row = rowsMap.get(top) ?? [];
+      row.push({ el, index });
+      rowsMap.set(top, row);
+    });
+
+    const rows = Array.from(rowsMap.values());
+    let closestRow = rows[0];
+    let minRowDistance = Number.POSITIVE_INFINITY;
+
+    rows.forEach((row) => {
+      const rect = row[0].el.getBoundingClientRect();
+      const centerY = rect.top + rect.height / 2;
+      const distanceY = Math.abs(clientY - centerY);
+      if (distanceY < minRowDistance) {
+        minRowDistance = distanceY;
+        closestRow = row;
+      }
+    });
+
+    closestRow.sort((a, b) => a.index - b.index);
+    let index = closestRow[closestRow.length - 1].index + 1;
+    for (const { el, index: wordIndex } of closestRow) {
+      const rect = el.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      if (clientX < centerX) {
+        index = wordIndex;
+        break;
+      }
+    }
+
+    return index;
+  };
+
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
@@ -73,28 +119,7 @@ const DropZone: React.FC<DropZoneProps> = ({
     if (isSentenceZone) {
       const container = containerRef.current;
       if (!container) return;
-
-      const draggableElements = [
-        ...container.querySelectorAll('[draggable="true"]'),
-      ] as HTMLElement[];
-      let closest = { distance: Number.POSITIVE_INFINITY, index: words.length };
-
-      draggableElements.forEach((child, index) => {
-        const box = child.getBoundingClientRect();
-        const centerX = box.left + box.width / 2;
-        const centerY = box.top + box.height / 2;
-        const dx = e.clientX - centerX;
-        const dy = e.clientY - centerY;
-        const distance = Math.hypot(dx, dy);
-        if (distance < closest.distance) {
-          closest = {
-            distance,
-            index: e.clientX < centerX ? index : index + 1,
-          };
-        }
-      });
-
-      setDropIndex(closest.index);
+      setDropIndex(calculateDropIndex(e.clientX, e.clientY, container));
     }
   };
 
@@ -131,27 +156,9 @@ const DropZone: React.FC<DropZoneProps> = ({
       if (within) {
         setIsDragOver(true);
         if (isSentenceZone) {
-          const draggableElements = [
-            ...container.querySelectorAll('[draggable="true"]'),
-          ] as HTMLElement[];
-          let closest = { distance: Number.POSITIVE_INFINITY, index: words.length };
-
-          draggableElements.forEach((child, index) => {
-            const box = child.getBoundingClientRect();
-            const centerX = box.left + box.width / 2;
-            const centerY = box.top + box.height / 2;
-            const dx = touch.clientX - centerX;
-            const dy = touch.clientY - centerY;
-            const distance = Math.hypot(dx, dy);
-            if (distance < closest.distance) {
-              closest = {
-                distance,
-                index: touch.clientX < centerX ? index : index + 1,
-              };
-            }
-          });
-
-          setDropIndex(closest.index);
+          setDropIndex(
+            calculateDropIndex(touch.clientX, touch.clientY, container),
+          );
         }
       } else {
         setIsDragOver(false);
