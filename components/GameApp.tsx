@@ -149,7 +149,7 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
       assignmentId: assignment.id,
       version: assignment.version,
       student: { name: studentName },
-      summary: { correct: 0, total: assignment.sentences.length, reveals: 0 },
+      summary: { total: assignment.sentences.length, solvedWithinMax: 0, firstTry: 0, reveals: 0, avgAttempts: 0 },
       results: []
     };
     setProgress(initialProgress);
@@ -277,13 +277,20 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
   // --- Answer Checking & Progression ---
   const updateProgress = (result: Result) => {
     if (!progress || !assignment) return;
+    const maxAttempts = assignment.options.attemptsPerItem ?? 3;
+    const solvedInc = result.ok && result.attempts <= maxAttempts ? 1 : 0;
+    const firstTryInc = result.ok && result.attempts === 1 ? 1 : 0;
+    const totalAttempts = progress.summary.avgAttempts * progress.results.length + result.attempts;
+    const newAvg = totalAttempts / (progress.results.length + 1);
     const newProgress: StudentProgress = {
       ...progress,
       results: [...progress.results, result],
       summary: {
-        ...progress.summary,
-        correct: progress.summary.correct + (result.ok ? 1 : 0),
-        reveals: progress.summary.reveals + (result.revealed ? 1 : 0)
+        total: progress.summary.total,
+        solvedWithinMax: progress.summary.solvedWithinMax + solvedInc,
+        firstTry: progress.summary.firstTry + firstTryInc,
+        reveals: progress.summary.reveals + (result.revealed ? 1 : 0),
+        avgAttempts: newAvg
       }
     };
     setProgress(newProgress);
@@ -304,7 +311,7 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
     }
 
     if (mode === 'homework') {
-      updateProgress({ index: currentSentenceIndex, ok: isCorrect, revealed: false });
+      updateProgress({ index: currentSentenceIndex, ok: isCorrect, revealed: false, attempts: 1 });
     }
 
     setFeedback({
@@ -315,7 +322,7 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
 
   const handleReveal = () => {
     if (mode === 'homework') {
-      updateProgress({ index: currentSentenceIndex, ok: false, revealed: true });
+      updateProgress({ index: currentSentenceIndex, ok: false, revealed: true, attempts: 1 });
     }
     setFeedback({ type: 'error', message: `The correct answer is: "${correctSentenceText}"` });
   };

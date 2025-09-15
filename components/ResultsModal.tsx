@@ -8,7 +8,7 @@ interface ResultsModalProps {
 
 const ResultsModal: React.FC<ResultsModalProps> = ({ assignment, progress }) => {
   const { summary, student, results } = progress;
-  const score = `${summary.correct}/${summary.total}`;
+  const score = `${summary.solvedWithinMax}/${summary.total}`;
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
 
@@ -24,7 +24,7 @@ const ResultsModal: React.FC<ResultsModalProps> = ({ assignment, progress }) => 
 
     return `Homework: ${assignment.title} (v${assignment.version})
 Student: ${student.name || 'N/A'}
-Result: ${score} correct (${summary.reveals} reveals)
+Result: ${score} solved (${summary.reveals} reveals, ${summary.firstTry} first try, avg ${summary.avgAttempts.toFixed(2)} attempts)
 Items: ${items}
 ID: ${shareId}`;
   };
@@ -58,7 +58,7 @@ ID: ${shareId}`;
       
       <div className="text-5xl font-bold my-4">
         {score}
-        <span className="text-2xl font-medium text-gray-600"> correct</span>
+        <span className="text-2xl font-medium text-gray-600"> solved</span>
       </div>
       
       <div className="my-4 text-gray-500">

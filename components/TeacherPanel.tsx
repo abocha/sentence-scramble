@@ -45,6 +45,8 @@ const TeacherPanel: React.FC = () => {
       hints: 'none',
       feedback: 'show-on-wrong',
       scramble: 'seeded',
+      attemptsPerItem: 3,
+      revealAfterMax: true,
     };
 
     const assignment: Assignment = {
