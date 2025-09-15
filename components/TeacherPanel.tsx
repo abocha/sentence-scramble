@@ -10,6 +10,8 @@ const TeacherPanel: React.FC = () => {
   const [copySuccess, setCopySuccess] = useState('');
   const [titleError, setTitleError] = useState('');
   const [sentencesError, setSentencesError] = useState('');
+  const [attemptsPerItem, setAttemptsPerItem] = useState('3');
+  const [revealAfterMaxAttempts, setRevealAfterMaxAttempts] = useState(true);
 
   const handleSplitSentences = () => {
     const lines = splitIntoSentences(sentences);
@@ -41,7 +43,9 @@ const TeacherPanel: React.FC = () => {
 
     // Default options for MVP
     const options: AssignmentOptions = {
-      attempts: 'unlimited',
+      attemptsPerItem:
+        attemptsPerItem === 'unlimited' ? 'unlimited' : parseInt(attemptsPerItem, 10),
+      revealAnswerAfterMaxAttempts: revealAfterMaxAttempts,
       hints: 'none',
       feedback: 'show-on-wrong',
       scramble: 'seeded',
@@ -119,6 +123,30 @@ const TeacherPanel: React.FC = () => {
           >
             Split into sentences
           </button>
+        </div>
+
+        <div>
+          <label htmlFor="attempts-per-item" className="block text-sm font-medium text-gray-700">Attempts per item</label>
+          <select
+            id="attempts-per-item"
+            value={attemptsPerItem}
+            onChange={(e) => setAttemptsPerItem(e.target.value)}
+            className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="unlimited">Unlimited</option>
+          </select>
+          <label className="mt-2 inline-flex items-center">
+            <input
+              type="checkbox"
+              checked={revealAfterMaxAttempts}
+              onChange={(e) => setRevealAfterMaxAttempts(e.target.checked)}
+              className="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
+            />
+            <span className="ml-2 text-sm text-gray-700">Reveal answer after max attempts</span>
+          </label>
         </div>
 
         <div className="flex justify-between items-center flex-wrap gap-4">
