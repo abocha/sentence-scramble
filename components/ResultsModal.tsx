@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { Assignment, StudentProgress } from '../types';
+import { computeSummary } from '../utils/summary';
 
 interface ResultsModalProps {
   assignment: Assignment;
@@ -7,8 +8,8 @@ interface ResultsModalProps {
 }
 
 const ResultsModal: React.FC<ResultsModalProps> = ({ assignment, progress }) => {
-  const { summary, student, results } = progress;
-  const score = `${summary.correct}/${summary.total}`;
+  const { student, results } = progress;
+  const summary = computeSummary(results);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
 
@@ -24,7 +25,9 @@ const ResultsModal: React.FC<ResultsModalProps> = ({ assignment, progress }) => 
 
     return `Homework: ${assignment.title} (v${assignment.version})
 Student: ${student.name || 'N/A'}
-Result: ${score} correct (${summary.reveals} reveals)
+Solved: ${summary.solved} / ${summary.total}
+First-try: ${summary.firstTry} / ${summary.total} • Reveals: ${summary.reveals}
+Avg attempts (solved): ${summary.avgAttempts.toFixed(2)}
 Items: ${items}
 ID: ${shareId}`;
   };
@@ -57,12 +60,13 @@ ID: ${shareId}`;
       <p className="text-lg text-gray-700 mb-4">Here are your results for "{assignment.title}".</p>
       
       <div className="text-5xl font-bold my-4">
-        {score}
-        <span className="text-2xl font-medium text-gray-600"> correct</span>
+        Solved: {summary.solved} / {summary.total}
       </div>
-      
-      <div className="my-4 text-gray-500">
-        {summary.reveals > 0 && <span>({summary.reveals} revealed)</span>}
+      <div className="my-2 text-gray-700">
+        First-try: {summary.firstTry} / {summary.total} • Reveals: {summary.reveals}
+      </div>
+      <div className="text-sm text-gray-500 mb-4">
+        Avg attempts (solved): {summary.avgAttempts.toFixed(2)}
       </div>
 
       <div className="flex flex-wrap gap-2 justify-center my-4">

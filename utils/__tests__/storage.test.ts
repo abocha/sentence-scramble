@@ -8,7 +8,7 @@ describe('saveProgress', () => {
     assignmentId: 'a1',
     version: 1,
     student: { name: 'Alice' },
-    summary: { correct: 0, total: 1, reveals: 0 },
+    summary: { total: 1, solved: 0, firstTry: 0, reveals: 0, avgAttempts: 0 },
     results: []
   };
 
@@ -46,7 +46,7 @@ describe('loadProgress', () => {
     assignmentId: 'a1',
     version: 1,
     student: { name: 'Alice' },
-    summary: { correct: 0, total: 1, reveals: 0 },
+    summary: { total: 1, solved: 0, firstTry: 0, reveals: 0, avgAttempts: 0 },
     results: []
   };
 
