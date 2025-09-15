@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { SENTENCES as defaultSentences } from '../constants/sentences';
 import type { Word, Feedback, Assignment, StudentProgress, Result, SentenceWithOptions } from '../types';
+import { computeSummary } from '../utils/summary';
 import Header from './Header';
 import DropZone from './DropZone';
 import SpinnerIcon from './icons/SpinnerIcon';
@@ -148,11 +149,11 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
 
   const startNewAttempt = () => {
     if (!assignment) return;
-    const initialProgress = {
+    const initialProgress: StudentProgress = {
       assignmentId: assignment.id,
       version: assignment.version,
       student: { name: studentName },
-      summary: { correct: 0, total: assignment.sentences.length, reveals: 0 },
+      summary: { total: assignment.sentences.length, solved: 0, firstTry: 0, reveals: 0, avgAttempts: 0 },
       results: []
     };
     setProgress(initialProgress);
@@ -280,14 +281,13 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
   // --- Answer Checking & Progression ---
   const updateProgress = (result: Result) => {
     if (!progress || !assignment) return;
+    const newResults = [...progress.results, result];
+    const newSummary = computeSummary(newResults);
+    newSummary.total = assignment.sentences.length;
     const newProgress: StudentProgress = {
       ...progress,
-      results: [...progress.results, result],
-      summary: {
-        ...progress.summary,
-        correct: progress.summary.correct + (result.ok ? 1 : 0),
-        reveals: progress.summary.reveals + (result.revealed ? 1 : 0)
-      }
+      results: newResults,
+      summary: newSummary
     };
     setProgress(newProgress);
     const storageKey = `ss::${assignment.id}::${studentName}`;
@@ -308,7 +308,7 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
     }
 
     if (mode === 'homework') {
-      updateProgress({ index: currentSentenceIndex, ok: isCorrect, revealed: false });
+      updateProgress({ index: currentSentenceIndex, ok: isCorrect, revealed: false, attempts: 1 });
     }
 
     setFeedback({
@@ -319,7 +319,7 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
 
   const handleReveal = () => {
     if (mode === 'homework') {
-      updateProgress({ index: currentSentenceIndex, ok: false, revealed: true });
+      updateProgress({ index: currentSentenceIndex, ok: false, revealed: true, attempts: 0 });
     }
     setFeedback({ type: 'error', message: `The correct answer is: "${correctSentenceText}"` });
   };
