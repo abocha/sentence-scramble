@@ -159,13 +159,24 @@ const DropZone: React.FC<DropZoneProps> = ({
 
       if (within) {
         const { wordId, sourceZoneId } = touchDragData;
-        onDrop(wordId, sourceZoneId, isSentenceZone ? dropIndex ?? undefined : undefined);
+        onDrop(
+          wordId,
+          sourceZoneId,
+          isSentenceZone ? dropIndex ?? undefined : undefined,
+        );
+        setIsDragging(false);
+        touchDragData = null;
+      } else {
+        setTimeout(() => {
+          if (touchDragData) {
+            setIsDragging(false);
+            touchDragData = null;
+          }
+        }, 0);
       }
 
       setIsDragOver(false);
       setDropIndex(null);
-      setIsDragging(false);
-      touchDragData = null;
     };
 
     window.addEventListener("touchmove", handleWindowTouchMove, { passive: false });
