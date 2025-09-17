@@ -211,10 +211,9 @@ const DropZone: React.FC<DropZoneProps> = ({
 
   const baseClasses =
     "w-full min-h-[100px] p-4 rounded-lg border-2 border-dashed transition-all duration-200";
-  const stateClasses =
-    isDragOver && !isSentenceZone
-      ? "border-blue-500 bg-blue-50"
-      : "border-gray-300";
+  const stateClasses = isDragOver
+    ? "border-blue-500 bg-blue-50"
+    : "border-gray-300";
   const emptyClasses =
     words.length === 0 && isSentenceZone
       ? "flex items-center justify-center text-gray-400"

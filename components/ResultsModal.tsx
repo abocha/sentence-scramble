@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import type { Assignment, StudentProgress } from '../types';
+import { encodeAssignmentToCompactHash } from '../utils/encoding';
+import Button, { getButtonClasses } from './Button';
 
 interface ResultsModalProps {
   assignment: Assignment;
   progress: StudentProgress;
+  onStartNewAttempt?: () => void;
 }
 
-const ResultsModal: React.FC<ResultsModalProps> = ({ assignment, progress }) => {
+const ResultsModal: React.FC<ResultsModalProps> = ({ assignment, progress, onStartNewAttempt }) => {
   const { summary, student, results } = progress;
   const trimmedStudentName = student.name?.trim() ?? '';
   const displayStudentName = trimmedStudentName || 'N/A';
@@ -20,7 +23,11 @@ const ResultsModal: React.FC<ResultsModalProps> = ({ assignment, progress }) => 
   const avgAttemptsText = avgAttemptsValue !== null ? avgAttemptsValue.toFixed(2) : '0.00';
   const hasResults = results.length > 0;
   const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
-  const encodedShareUrl = shareUrl ? encodeURIComponent(shareUrl) : '';
+  const compactHash = encodeAssignmentToCompactHash(assignment);
+  const compactShareUrl = compactHash && typeof window !== 'undefined'
+    ? `${window.location.origin}/#C=${compactHash}`
+    : '';
+  const primaryShareLink = compactShareUrl || shareUrl;
 
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
@@ -28,14 +35,18 @@ const ResultsModal: React.FC<ResultsModalProps> = ({ assignment, progress }) => 
   const generateShareText = () => {
     const items = results
       .map(r => {
-        let status = r.ok ? 'OK' : 'X';
-        if (r.revealed) status += '(r)';
-        return `${r.index + 1}${status}`;
+        const status = r.ok ? '✅' : '❌';
+        const revealMarker = r.revealed ? '👀' : '';
+        return `${r.index + 1}${status}${revealMarker}`;
       })
       .join(' ');
 
     const idParts = assignment.id.split('-');
     const shareId = idParts.length > 1 ? idParts[1] : assignment.id;
+
+    const legend = results.some(r => r.revealed)
+      ? 'Legend: ✅ correct  ❌ incorrect  👀 revealed'
+      : 'Legend: ✅ correct  ❌ incorrect';
 
     return `Homework: ${assignment.title} (v${assignment.version})\n` +
       `Student: ${shareStudentName}\n` +
@@ -44,12 +55,16 @@ const ResultsModal: React.FC<ResultsModalProps> = ({ assignment, progress }) => 
       `Reveals: ${summary.reveals}\n` +
       `Avg attempts (solved): ${avgAttemptsText}\n` +
       `Items: ${items}\n` +
+      `${legend}\n` +
       `ID: ${shareId}`;
   };
 
   const shareText = generateShareText();
-  const encodedText = encodeURIComponent(shareText);
-  const telegramHref = `https://t.me/share/url?text=${encodedText}&url=${encodedShareUrl}`;
+  const shareTextWithLink = primaryShareLink ? `${shareText}\nLink: ${primaryShareLink}` : shareText;
+  const encodedText = encodeURIComponent(shareTextWithLink);
+  const telegramHref = primaryShareLink
+    ? `https://t.me/share/url?url=${encodeURIComponent(primaryShareLink)}&text=${encodeURIComponent(shareText)}`
+    : `https://t.me/share/url?text=${encodeURIComponent(shareText)}`;
 
   const copyToClipboard = () => {
     if (!navigator.clipboard) {
@@ -58,8 +73,10 @@ const ResultsModal: React.FC<ResultsModalProps> = ({ assignment, progress }) => 
       return;
     }
 
+    const textToCopy = shareTextWithLink;
+
     navigator.clipboard
-      .writeText(shareText)
+      .writeText(textToCopy)
       .then(() => {
         setCopyMessage('Results copied to clipboard!');
         setIsError(false);
@@ -89,18 +106,22 @@ const ResultsModal: React.FC<ResultsModalProps> = ({ assignment, progress }) => 
       </div>
 
       {hasResults ? (
-        <div className="flex flex-wrap gap-2 justify-center my-4">
+        <div className="flex flex-wrap gap-3 justify-center my-6">
           {results.map(r => {
             const statusLabel = `Sentence ${r.index + 1}: ${r.ok ? 'correct' : 'incorrect'}${r.revealed ? ', revealed' : ''}`;
             return (
               <span
                 key={r.index}
-                className={`w-10 h-10 flex items-center justify-center rounded-full font-bold text-white ${r.ok ? 'bg-green-500' : 'bg-red-500'}`}
+                className={`relative flex items-center justify-center w-12 h-12 rounded-full font-bold text-white text-lg ${r.ok ? 'bg-green-500' : 'bg-red-500'}`}
                 title={r.revealed ? `Sentence ${r.index + 1}: Revealed` : `Sentence ${r.index + 1}: ${r.ok ? 'Correct' : 'Incorrect'}`}
                 aria-label={statusLabel}
               >
                 {r.index + 1}
-                {r.revealed && <sup className="ml-px font-normal">R</sup>}
+                {r.revealed && (
+                  <span className="absolute -top-1 right-0 text-[0.6rem] font-semibold bg-white text-red-500 rounded-full px-1 py-0.5 leading-none">
+                    R
+                  </span>
+                )}
               </span>
             );
           })}
@@ -110,28 +131,20 @@ const ResultsModal: React.FC<ResultsModalProps> = ({ assignment, progress }) => 
       )}
 
       {hasResults && (
-        <div className="mt-8 w-full max-w-sm">
+        <div className="mt-8 w-full max-w-md">
           <h3 className="font-semibold text-lg mb-3">Send Results to Teacher</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <button
-                type="button"
-                onClick={copyToClipboard}
-                className="p-3 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors"
-              >
-                Copy Results
-              </button>
-              {copyMessage && (
-                <p
-                  className={`mt-2 text-sm ${isError ? 'text-red-600' : 'text-green-600'}`}
-                >
-                  {copyMessage}
-                </p>
-              )}
-            </div>
+            <Button
+              onClick={copyToClipboard}
+              variant="secondary"
+              fullWidth
+              className="h-full"
+            >
+              Copy Results
+            </Button>
             <a
               href={`mailto:?subject=Homework Results: ${encodeURIComponent(assignment.title)}&body=${encodedText}`}
-              className="p-3 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-colors block"
+              className={getButtonClasses('secondary', { fullWidth: true, extra: 'h-full text-center no-underline' })}
             >
               Email
             </a>
@@ -139,7 +152,7 @@ const ResultsModal: React.FC<ResultsModalProps> = ({ assignment, progress }) => 
               href={`https://wa.me/?text=${encodedText}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="p-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors block"
+              className={getButtonClasses('whatsapp', { fullWidth: true, extra: 'h-full text-center no-underline' })}
             >
               WhatsApp
             </a>
@@ -147,13 +160,39 @@ const ResultsModal: React.FC<ResultsModalProps> = ({ assignment, progress }) => 
               href={telegramHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors block"
+              className={getButtonClasses('telegram', { fullWidth: true, extra: 'h-full text-center no-underline' })}
             >
               Telegram
             </a>
           </div>
+          <div className="mt-2 min-h-[1.25rem] text-sm" aria-live="polite">
+            {copyMessage && (
+              <span className={isError ? 'text-red-600' : 'text-green-600'}>
+                {copyMessage}
+              </span>
+            )}
+          </div>
         </div>
       )}
+
+      <div className="mt-10 w-full max-w-md flex flex-col sm:flex-row gap-3 justify-center">
+        {onStartNewAttempt && (
+          <Button
+            onClick={onStartNewAttempt}
+            variant="primary"
+            fullWidth
+            className="sm:w-auto"
+          >
+            Start New Attempt
+          </Button>
+        )}
+        <a
+          href="#practice"
+          className={getButtonClasses('tertiary', { fullWidth: true, extra: 'sm:w-auto text-center no-underline' })}
+        >
+          Back to Practice Mode
+        </a>
+      </div>
     </div>
   );
 };

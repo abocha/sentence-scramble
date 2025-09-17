@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { Assignment, AssignmentOptions } from '../types';
 import { encodeAssignmentToHash } from '../utils/encoding';
 import { parseTeacherInput, splitIntoSentences } from '../utils/sentenceSplitter';
+import Button, { getButtonClasses } from './Button';
 
 const buildOptions = (
   attempts: string,
@@ -110,7 +111,7 @@ const TeacherPanel: React.FC = () => {
         </div>
 
         <div>
-          <label htmlFor="sentences" className="block text-sm font-medium text-gray-700">Sentences (one per line)</label>
+          <label htmlFor="sentences" className="block text-sm font-medium text-gray-700">Sentences</label>
           <p className="text-sm text-gray-500 mt-1">One sentence per line. Or paste a paragraph and click Split into sentences.</p>
           <textarea
             id="sentences"
@@ -124,13 +125,14 @@ const TeacherPanel: React.FC = () => {
             placeholder="The quick brown fox jumps over the lazy dog.&#10;She sells seashells by the seashore."
           />
           {sentencesError && <p className="mt-1 text-sm text-red-600">{sentencesError}</p>}
-          <button
-            type="button"
+          <Button
             onClick={handleSplitSentences}
-            className="mt-2 px-4 py-1 bg-gray-200 text-gray-800 rounded"
+            variant="neutral"
+            fullWidth
+            className="mt-2 sm:w-auto px-4 py-2 text-sm font-semibold"
           >
             Split into sentences
-          </button>
+          </Button>
         </div>
 
         <div>
@@ -158,14 +160,18 @@ const TeacherPanel: React.FC = () => {
         </div>
 
         <div className="flex justify-between items-center flex-wrap gap-4">
-          <button
-            type="button"
+          <Button
             onClick={generateLink}
-            className="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition-all transform hover:scale-105"
+            variant="primary"
+            fullWidth
+            className="sm:w-auto"
           >
             Generate Link
-          </button>
-          <a href="#practice" className="px-6 py-2 bg-gray-600 text-white font-bold rounded-lg shadow-md hover:bg-gray-700 transition-all">
+          </Button>
+          <a
+            href="#practice"
+            className={getButtonClasses('secondary', { fullWidth: true, extra: 'sm:w-auto text-center' })}
+          >
             Back to Practice
           </a>
         </div>
@@ -180,14 +186,19 @@ const TeacherPanel: React.FC = () => {
               className="w-full p-2 mt-2 bg-white border rounded"
               onFocus={(e) => e.target.select()}
             />
-            <button
-              type="button"
+            <Button
               onClick={copyToClipboard}
-              className="mt-4 px-6 py-2 bg-green-600 text-white font-bold rounded-lg shadow-md hover:bg-green-700 transition-all"
+              variant="success"
+              fullWidth
+              className="mt-4 sm:w-auto"
             >
               Copy Instructions for Student
-            </button>
-            {copySuccess && <p className="mt-2 text-sm text-green-700">{copySuccess}</p>}
+            </Button>
+            <div className="mt-2 min-h-[1.25rem] text-sm" aria-live="polite">
+              {copySuccess && (
+                <span className="text-green-700">{copySuccess}</span>
+              )}
+            </div>
           </div>
         )}
       </div>

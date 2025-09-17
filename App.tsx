@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Assignment } from './types';
-import { parseAssignmentFromHash } from './utils/encoding';
+import { parseAssignmentFromHash, parseAssignmentFromCompactHash } from './utils/encoding';
 import TeacherApp from './components/TeacherApp';
 import GameApp from './components/GameApp';
 
@@ -19,17 +19,24 @@ const App: React.FC = () => {
         if (loadedAssignment) {
           setAssignment(loadedAssignment);
           setMode('homework');
-        } else {
-          setAssignment(null);
-          setMode('practice');
+          return;
+        }
+      } else if (hash.startsWith('#C=')) {
+        const payload = hash.substring(3);
+        const loadedAssignment = parseAssignmentFromCompactHash(payload);
+        if (loadedAssignment) {
+          setAssignment(loadedAssignment);
+          setMode('homework');
+          return;
         }
       } else if (hash === '#teacher') {
         setMode('teacher');
         setAssignment(null);
-      } else {
-        setAssignment(null);
-        setMode('practice');
+        return;
       }
+
+      setAssignment(null);
+      setMode('practice');
     };
 
     handleHashChange();

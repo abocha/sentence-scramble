@@ -7,6 +7,7 @@ import DropZone from './DropZone';
 import SpinnerIcon from './icons/SpinnerIcon';
 import ResultsModal from './ResultsModal';
 import ResumePrompt from './ResumePrompt';
+import Button, { getButtonClasses } from './Button';
 import { tokenizeSentence } from '../utils/tokenization';
 import { seededShuffle } from '../utils/prng';
 import { saveProgress, loadProgress } from '../utils/storage';
@@ -59,6 +60,7 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
   }, [assignment]);
 
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const studentNameInputRef = useRef<HTMLInputElement | null>(null);
 
   // --- Effects for Initialization and Mode Switching ---
   useEffect(() => {
@@ -70,14 +72,14 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
 
     if (mode === 'homework' && assignment) {
       const savedName = localStorage.getItem('ss::studentName') || '';
-      setStudentName(savedName);
-      const storageKey = `ss::${assignment.id}::${savedName}`;
+      updateStudentName(savedName);
+      const storageKey = `ss::${assignment.id}::${savedName.trim()}`;
       const savedProgress = loadProgress(storageKey);
       if (savedProgress && savedProgress.results.length > 0) {
         setProgress(savedProgress);
         setShowResumePrompt(true);
       } else {
-        startNewAttempt();
+        startNewAttempt(savedName);
       }
     } else if (mode === 'practice') {
       setupNewSentence();
@@ -172,52 +174,6 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSentenceIndex, setupNewSentence, mode]);
 
-  const startNewAttempt = () => {
-    if (!assignment) return;
-
-    const sanitizedName = studentName.trim();
-    const initialProgress: StudentProgress = {
-      assignmentId: assignment.id,
-      version: assignment.version,
-      student: { name: sanitizedName },
-      summary: {
-        total: assignment.sentences.length,
-        solvedWithinMax: 0,
-        firstTry: 0,
-        reveals: 0,
-        avgAttempts: 0,
-      },
-      results: [],
-      current: { index: 0, attemptsUsed: 0, revealed: false },
-    };
-
-    setProgress(initialProgress);
-    const storageKey = `ss::${assignment.id}::${sanitizedName}`;
-    saveProgress(storageKey, initialProgress);
-
-    setAttemptsUsed(0);
-    setItemComplete(false);
-    setCurrentSentenceIndex(0);
-    setupNewSentence(0);
-    setShowResumePrompt(false);
-  };
-
-  const resumeAttempt = () => {
-    if (!progress) return;
-
-    const nextIndex = progress.current?.index ?? progress.results.length;
-    if (nextIndex >= sentences.length) {
-      setShowResults(true);
-    } else {
-      setCurrentSentenceIndex(nextIndex);
-      setAttemptsUsed(progress.current?.attemptsUsed ?? 0);
-      setItemComplete(progress.current?.revealed ?? false);
-    }
-
-    setFeedback(null);
-    setShowResumePrompt(false);
-  };
-
   const persistProgressUpdate = useCallback(
     (updater: (prev: StudentProgress) => StudentProgress) => {
       if (mode !== 'homework' || !assignment) return;
@@ -246,6 +202,81 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
     },
     [mode, assignment]
   );
+
+  const updateStudentName = useCallback(
+    (rawName: string) => {
+      setStudentName(prev => (prev === rawName ? prev : rawName));
+
+      const sanitizedName = rawName.trim();
+      localStorage.setItem('ss::studentName', sanitizedName);
+
+      if (mode !== 'homework') return;
+
+      const currentSanitized = (progress?.student.name ?? '').trim();
+      if (sanitizedName === currentSanitized) return;
+
+      persistProgressUpdate(prev => ({
+        ...prev,
+        student: { name: sanitizedName },
+      }));
+    },
+    [mode, progress, persistProgressUpdate]
+  );
+
+  const startNewAttempt = useCallback(
+    (nameOverride?: string) => {
+      if (!assignment) return;
+
+      const baseName = typeof nameOverride === 'string' ? nameOverride : studentName;
+      const sanitizedName = baseName.trim();
+      const initialProgress: StudentProgress = {
+        assignmentId: assignment.id,
+        version: assignment.version,
+        student: { name: sanitizedName },
+        summary: {
+          total: assignment.sentences.length,
+          solvedWithinMax: 0,
+          firstTry: 0,
+          reveals: 0,
+          avgAttempts: 0,
+        },
+        results: [],
+        current: { index: 0, attemptsUsed: 0, revealed: false },
+      };
+
+      setProgress(initialProgress);
+      const storageKey = `ss::${assignment.id}::${sanitizedName}`;
+      saveProgress(storageKey, initialProgress);
+
+      setAttemptsUsed(0);
+      setItemComplete(false);
+      setCurrentSentenceIndex(0);
+      setupNewSentence(0);
+      setShowResumePrompt(false);
+      setShowResults(false);
+
+      if (baseName !== studentName) {
+        setStudentName(baseName);
+      }
+    },
+    [assignment, studentName, setupNewSentence]
+  );
+
+  const resumeAttempt = () => {
+    if (!progress) return;
+
+    const nextIndex = progress.current?.index ?? progress.results.length;
+    if (nextIndex >= sentences.length) {
+      setShowResults(true);
+    } else {
+      setCurrentSentenceIndex(nextIndex);
+      setAttemptsUsed(progress.current?.attemptsUsed ?? 0);
+      setItemComplete(progress.current?.revealed ?? false);
+    }
+
+    setFeedback(null);
+    setShowResumePrompt(false);
+  };
 
   const updateCurrentAttempt = useCallback(
     (attemptCount: number, revealed: boolean) => {
@@ -522,18 +553,42 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
     }
   };
 
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newName = e.target.value;
-    const sanitizedName = newName.trim();
-    setStudentName(newName);
-    localStorage.setItem('ss::studentName', sanitizedName);
+  useEffect(() => {
+    if (mode !== 'homework') return;
 
-    if (mode === 'homework') {
-      persistProgressUpdate(prev => ({
-        ...prev,
-        student: { name: sanitizedName },
-      }));
+    const input = studentNameInputRef.current;
+    if (!input) return;
+
+    const syncIfNeeded = () => {
+      const currentValue = input.value;
+      if (currentValue === studentName) return;
+      updateStudentName(currentValue);
+    };
+
+    const timeouts: Array<number | undefined> = [];
+    if (typeof window !== 'undefined') {
+      [0, 120, 600, 1500].forEach(delay => {
+        const id = window.setTimeout(syncIfNeeded, delay);
+        timeouts.push(id);
+      });
     }
+
+    input.addEventListener('focus', syncIfNeeded);
+    input.addEventListener('blur', syncIfNeeded);
+
+    return () => {
+      input.removeEventListener('focus', syncIfNeeded);
+      input.removeEventListener('blur', syncIfNeeded);
+      if (typeof window !== 'undefined') {
+        timeouts.forEach(id => {
+          if (id !== undefined) window.clearTimeout(id);
+        });
+      }
+    };
+  }, [mode, studentName, updateStudentName]);
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    updateStudentName(e.target.value);
   };
 
   const renderGameContent = () => {
@@ -541,6 +596,11 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
     const nextAttemptNumber = finiteMax
       ? Math.min(itemComplete ? attemptsUsed : attemptsUsed + 1, finiteMax)
       : itemComplete ? attemptsUsed : attemptsUsed + 1;
+
+    const totalSentences = sentences.length;
+    const sentenceIndicator = totalSentences > 0
+      ? `Sentence ${Math.min(currentSentenceIndex + 1, totalSentences)} of ${totalSentences}`
+      : null;
 
     const attemptLabel = finiteMax
       ? itemComplete
@@ -564,6 +624,15 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
           </div>
         ) : (
           <div className="flex flex-col gap-6 flex-grow">
+            {mode === 'homework' && sentenceIndicator && (
+              <div
+                className="text-sm font-semibold text-center tracking-wide text-gray-600"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                {sentenceIndicator}
+              </div>
+            )}
             <DropZone
               id="available-words"
               words={availableWords}
@@ -584,12 +653,16 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
               isSentenceZone={true}
             />
 
-            {feedback && (
-              <div className={`mt-4 p-4 rounded-lg text-center font-semibold text-white ${feedback.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
-                <span>{feedback.message}</span>
-                {feedback.detail && <span className="block text-sm font-medium opacity-90 mt-1">{feedback.detail}</span>}
-              </div>
-            )}
+            <div className="mt-4" aria-live="polite" aria-atomic="true">
+              {feedback ? (
+                <div className={`p-4 rounded-lg text-center font-semibold text-white ${feedback.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
+                  <span>{feedback.message}</span>
+                  {feedback.detail && <span className="block text-sm font-medium opacity-90 mt-1">{feedback.detail}</span>}
+                </div>
+              ) : (
+                <div className="min-h-[52px]" aria-hidden="true" />
+              )}
+            </div>
 
             <div className="mt-auto pt-6 flex flex-col sm:flex-row gap-4 justify-center items-center flex-wrap">
               <div
@@ -602,51 +675,51 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
               </div>
 
               {isFinalStep ? (
-                <button
-                  type="button"
+                <Button
                   onClick={handleNext}
-                  className="w-full sm:w-auto px-8 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition-all transform hover:scale-105"
+                  variant="primary"
+                  className="w-full sm:w-auto"
                 >
                   {currentSentenceIndex < sentences.length - 1
                     ? 'Next Sentence'
                     : (mode === 'homework' ? 'Finish & See Results' : 'Next Sentence')}
-                </button>
+                </Button>
               ) : (
                 <>
                   {mode === 'homework' && (
                     <>
-                      <button
-                        type="button"
+                      <Button
                         onClick={handleUndo}
-                        className="w-full sm:w-auto px-6 py-3 bg-gray-500 text-white font-bold rounded-lg shadow-md hover:bg-gray-600 transition-colors"
+                        variant="secondary"
+                        className="w-full sm:w-auto"
                       >
                         Undo
-                      </button>
-                      <button
-                        type="button"
+                      </Button>
+                      <Button
                         onClick={() => setupNewSentence(currentSentenceIndex, { preserveAttempts: true })}
-                        className="w-full sm:w-auto px-6 py-3 bg-yellow-500 text-white font-bold rounded-lg shadow-md hover:bg-yellow-600 transition-colors"
+                        variant="warning"
+                        className="w-full sm:w-auto"
                       >
                         Reset
-                      </button>
+                      </Button>
                     </>
                   )}
-                  <button
-                    type="button"
+                  <Button
                     onClick={handleCheckAnswer}
                     disabled={userSentence.length === 0 || itemComplete}
-                    className="w-full sm:w-auto px-8 py-3 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 disabled:bg-gray-400 transition-all transform hover:scale-105"
+                    variant="primary"
+                    className="w-full sm:w-auto"
                   >
                     Check Answer
-                  </button>
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
                     onClick={handleReveal}
                     disabled={itemComplete}
-                    className="w-full sm:w-auto px-6 py-3 bg-red-600 text-white font-bold rounded-lg shadow-md hover:bg-red-700 disabled:bg-red-300 transition-colors"
+                    variant="danger"
+                    className="w-full sm:w-auto"
                   >
                     Reveal
-                  </button>
+                  </Button>
                 </>
               )}
             </div>
@@ -662,7 +735,13 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
       <main className="w-full max-w-4xl mx-auto bg-white rounded-2xl shadow-2xl p-6 md:p-8 mt-6 flex flex-col flex-grow">
         {mode === 'homework' && !progress && !showResumePrompt && <div className="flex-grow flex items-center justify-center"><SpinnerIcon /></div>}
         {showResumePrompt && <ResumePrompt onResume={resumeAttempt} onStartOver={startNewAttempt} />}
-        {mode === 'homework' && progress && showResults && assignment && <ResultsModal assignment={assignment} progress={progress} />}
+        {mode === 'homework' && progress && showResults && assignment && (
+          <ResultsModal
+            assignment={assignment}
+            progress={progress}
+            onStartNewAttempt={startNewAttempt}
+          />
+        )}
 
         {(!showResumePrompt && !showResults) && (
           <>
@@ -672,6 +751,9 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
                 <input
                   type="text"
                   id="studentName"
+                  name="studentName"
+                  autoComplete="name"
+                  ref={studentNameInputRef}
                   value={studentName}
                   onChange={handleNameChange}
                   placeholder="Enter your name to save progress"
@@ -683,7 +765,10 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
                 <h2 className="text-xl md:text-2xl font-bold text-center text-blue-600 mb-2">Unscramble the Sentence</h2>
                 <p className="text-center text-gray-500 mb-6">Drag words into the box to form a correct sentence. Or click the "Teacher Panel" button to create homework.</p>
                 <div className="text-center mb-6">
-                  <a href="#teacher" className="px-6 py-2 bg-green-600 text-white font-bold rounded-lg shadow-md hover:bg-green-700 transition-all">
+                  <a
+                    href="#teacher"
+                    className={getButtonClasses('success')}
+                  >
                     Go to Teacher Panel
                   </a>
                 </div>
