@@ -8,9 +8,19 @@ interface ResultsModalProps {
 
 const ResultsModal: React.FC<ResultsModalProps> = ({ assignment, progress }) => {
   const { summary, student, results } = progress;
+  const trimmedStudentName = student.name?.trim() ?? '';
+  const displayStudentName = trimmedStudentName || 'N/A';
+  const shareStudentName = trimmedStudentName || 'N/A';
   const solvedLine = `${summary.solvedWithinMax}/${summary.total}`;
   const firstTryLine = `${summary.firstTry}/${summary.total}`;
-  const avgAttemptsText = summary.avgAttempts.toFixed(2);
+  const avgAttemptsValue =
+    typeof summary.avgAttempts === 'number' && Number.isFinite(summary.avgAttempts)
+      ? summary.avgAttempts
+      : null;
+  const avgAttemptsText = avgAttemptsValue !== null ? avgAttemptsValue.toFixed(2) : '0.00';
+  const hasResults = results.length > 0;
+  const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+  const encodedShareUrl = shareUrl ? encodeURIComponent(shareUrl) : '';
 
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
@@ -28,7 +38,7 @@ const ResultsModal: React.FC<ResultsModalProps> = ({ assignment, progress }) => 
     const shareId = idParts.length > 1 ? idParts[1] : assignment.id;
 
     return `Homework: ${assignment.title} (v${assignment.version})\n` +
-      `Student: ${student.name || 'N/A'}\n` +
+      `Student: ${shareStudentName}\n` +
       `Solved within limit: ${solvedLine}\n` +
       `First try: ${firstTryLine}\n` +
       `Reveals: ${summary.reveals}\n` +
@@ -39,6 +49,7 @@ const ResultsModal: React.FC<ResultsModalProps> = ({ assignment, progress }) => 
 
   const shareText = generateShareText();
   const encodedText = encodeURIComponent(shareText);
+  const telegramHref = `https://t.me/share/url?text=${encodedText}&url=${encodedShareUrl}`;
 
   const copyToClipboard = () => {
     if (!navigator.clipboard) {
@@ -62,7 +73,8 @@ const ResultsModal: React.FC<ResultsModalProps> = ({ assignment, progress }) => 
   return (
     <div className="text-center flex flex-col items-center justify-center h-full">
       <h2 className="text-3xl font-bold text-blue-600 mb-2">Homework Complete!</h2>
-      <p className="text-lg text-gray-700 mb-4">Here are your results for "{assignment.title}".</p>
+      <p className="text-lg text-gray-700 mb-2">Here are your results for "{assignment.title}".</p>
+      <p className="text-md text-gray-600 mb-4">Student: {displayStudentName}</p>
 
       <div className="text-4xl font-bold text-gray-800 my-2">
         Solved within limit: {solvedLine}
@@ -76,64 +88,75 @@ const ResultsModal: React.FC<ResultsModalProps> = ({ assignment, progress }) => 
         Avg attempts (solved): {avgAttemptsText}
       </div>
 
-      <div className="flex flex-wrap gap-2 justify-center my-4">
-        {results.map(r => (
-          <span
-            key={r.index}
-            className={`w-10 h-10 flex items-center justify-center rounded-full font-bold text-white ${r.ok ? 'bg-green-500' : 'bg-red-500'}`}
-            title={r.revealed ? `Sentence ${r.index + 1}: Revealed` : `Sentence ${r.index + 1}: ${r.ok ? 'Correct' : 'Incorrect'}`}
-          >
-            {r.index + 1}
-            {r.revealed && <sup className="ml-px font-normal">R</sup>}
-          </span>
-        ))}
-      </div>
-
-      <div className="mt-8 w-full max-w-sm">
-        <h3 className="font-semibold text-lg mb-3">Send Results to Teacher</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <button
-              type="button"
-              onClick={copyToClipboard}
-              className="p-3 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors"
-            >
-              Copy Results
-            </button>
-            {copyMessage && (
-              <p
-                className={`mt-2 text-sm ${isError ? 'text-red-600' : 'text-green-600'}`}
+      {hasResults ? (
+        <div className="flex flex-wrap gap-2 justify-center my-4">
+          {results.map(r => {
+            const statusLabel = `Sentence ${r.index + 1}: ${r.ok ? 'correct' : 'incorrect'}${r.revealed ? ', revealed' : ''}`;
+            return (
+              <span
+                key={r.index}
+                className={`w-10 h-10 flex items-center justify-center rounded-full font-bold text-white ${r.ok ? 'bg-green-500' : 'bg-red-500'}`}
+                title={r.revealed ? `Sentence ${r.index + 1}: Revealed` : `Sentence ${r.index + 1}: ${r.ok ? 'Correct' : 'Incorrect'}`}
+                aria-label={statusLabel}
               >
-                {copyMessage}
-              </p>
-            )}
-          </div>
-          <a
-            href={`mailto:?subject=Homework Results: ${encodeURIComponent(assignment.title)}&body=${encodedText}`}
-            className="p-3 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-colors block"
-          >
-            Email
-          </a>
-          <a
-            href={`https://wa.me/?text=${encodedText}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors block"
-          >
-            WhatsApp
-          </a>
-          <a
-            href={`https://t.me/share/url?text=${encodedText}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors block"
-          >
-            Telegram
-          </a>
+                {r.index + 1}
+                {r.revealed && <sup className="ml-px font-normal">R</sup>}
+              </span>
+            );
+          })}
         </div>
-      </div>
+      ) : (
+        <p className="text-sm text-gray-500 my-4">No attempts recorded yet.</p>
+      )}
+
+      {hasResults && (
+        <div className="mt-8 w-full max-w-sm">
+          <h3 className="font-semibold text-lg mb-3">Send Results to Teacher</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <button
+                type="button"
+                onClick={copyToClipboard}
+                className="p-3 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                Copy Results
+              </button>
+              {copyMessage && (
+                <p
+                  className={`mt-2 text-sm ${isError ? 'text-red-600' : 'text-green-600'}`}
+                >
+                  {copyMessage}
+                </p>
+              )}
+            </div>
+            <a
+              href={`mailto:?subject=Homework Results: ${encodeURIComponent(assignment.title)}&body=${encodedText}`}
+              className="p-3 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-colors block"
+            >
+              Email
+            </a>
+            <a
+              href={`https://wa.me/?text=${encodedText}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors block"
+            >
+              WhatsApp
+            </a>
+            <a
+              href={telegramHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors block"
+            >
+              Telegram
+            </a>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default ResultsModal;
+

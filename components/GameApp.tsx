@@ -175,10 +175,11 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
   const startNewAttempt = () => {
     if (!assignment) return;
 
+    const sanitizedName = studentName.trim();
     const initialProgress: StudentProgress = {
       assignmentId: assignment.id,
       version: assignment.version,
-      student: { name: studentName },
+      student: { name: sanitizedName },
       summary: {
         total: assignment.sentences.length,
         solvedWithinMax: 0,
@@ -191,7 +192,7 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
     };
 
     setProgress(initialProgress);
-    const storageKey = `ss::${assignment.id}::${studentName}`;
+    const storageKey = `ss::${assignment.id}::${sanitizedName}`;
     saveProgress(storageKey, initialProgress);
 
     setAttemptsUsed(0);
@@ -223,13 +224,27 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
 
       setProgress(prev => {
         if (!prev) return prev;
-        const updated = updater(prev);
-        const storageKey = `ss::${assignment.id}::${studentName}`;
-        saveProgress(storageKey, updated);
+
+        const previousName = (prev.student.name ?? '').trim();
+        const updatedDraft = updater(prev);
+        const sanitizedName = (updatedDraft.student.name ?? '').trim();
+        const updated: StudentProgress = {
+          ...updatedDraft,
+          student: { ...updatedDraft.student, name: sanitizedName },
+        };
+
+        const previousKey = `ss::${assignment.id}::${previousName}`;
+        const nextKey = `ss::${assignment.id}::${sanitizedName}`;
+
+        if (previousKey !== nextKey && previousName !== sanitizedName) {
+          localStorage.removeItem(previousKey);
+        }
+
+        saveProgress(nextKey, updated);
         return updated;
       });
     },
-    [mode, assignment, studentName]
+    [mode, assignment]
   );
 
   const updateCurrentAttempt = useCallback(
@@ -509,8 +524,16 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newName = e.target.value;
-    localStorage.setItem('ss::studentName', newName);
+    const sanitizedName = newName.trim();
     setStudentName(newName);
+    localStorage.setItem('ss::studentName', sanitizedName);
+
+    if (mode === 'homework') {
+      persistProgressUpdate(prev => ({
+        ...prev,
+        student: { name: sanitizedName },
+      }));
+    }
   };
 
   const renderGameContent = () => {
@@ -678,5 +701,6 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
 };
 
 export default GameApp;
+
 
 
