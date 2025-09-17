@@ -11,6 +11,7 @@ describe('encoding utilities', () => {
       seed: 'seed',
       options: {
         attemptsPerItem: 'unlimited',
+        revealAfterMax: true,
         revealAnswerAfterMaxAttempts: true,
         hints: 'none',
         feedback: 'show-on-wrong',
@@ -35,6 +36,7 @@ describe('encoding utilities', () => {
       seed: 'seed',
       options: {
         attemptsPerItem: 'unlimited',
+        revealAfterMax: true,
         revealAnswerAfterMaxAttempts: true,
         hints: 'none',
         feedback: 'show-on-wrong',
@@ -52,3 +54,5 @@ describe('encoding utilities', () => {
     ]);
   });
 });
+
+

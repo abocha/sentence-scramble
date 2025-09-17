@@ -6,9 +6,8 @@ export interface Word {
 export interface Feedback {
   type: 'success' | 'error';
   message: string;
+  detail?: string;
 }
-
-// --- New Types for Homework Flow ---
 
 export interface SentenceWithOptions {
   text: string;
@@ -18,13 +17,12 @@ export interface SentenceWithOptions {
 }
 
 export interface AssignmentOptions {
-  attemptsPerItem: number | 'unlimited';
-  revealAnswerAfterMaxAttempts: boolean;
+  attemptsPerItem?: number | 'unlimited';
+  revealAfterMax?: boolean;
+  revealAnswerAfterMaxAttempts?: boolean;
   hints: 'none' | 'first-last' | 'lock';
   feedback: 'show-on-wrong' | 'end-only';
   scramble: 'seeded' | 'random';
-  attemptsPerItem?: number; // default 3
-  revealAfterMax?: boolean; // default true
 }
 
 export interface Assignment {
@@ -41,7 +39,6 @@ export interface Result {
   ok: boolean;
   attempts: number;
   revealed: boolean;
-  attempts: number;
 }
 
 export interface Summary {
@@ -58,4 +55,9 @@ export interface StudentProgress {
   student: { name: string };
   summary: Summary;
   results: Result[];
+  current?: {
+    index: number;
+    attemptsUsed: number;
+    revealed: boolean;
+  };
 }

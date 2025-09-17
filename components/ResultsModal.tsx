@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import type { Assignment, StudentProgress } from '../types';
-import { computeSummary } from '../utils/summary';
 
 interface ResultsModalProps {
   assignment: Assignment;
@@ -9,28 +8,33 @@ interface ResultsModalProps {
 
 const ResultsModal: React.FC<ResultsModalProps> = ({ assignment, progress }) => {
   const { summary, student, results } = progress;
-  const score = `${summary.solvedWithinMax}/${summary.total}`;
+  const solvedLine = `${summary.solvedWithinMax}/${summary.total}`;
+  const firstTryLine = `${summary.firstTry}/${summary.total}`;
+  const avgAttemptsText = summary.avgAttempts.toFixed(2);
 
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
 
   const generateShareText = () => {
-    const items = results.map(r => {
-      let status = r.ok ? '✅' : '❌';
-      if (r.revealed) status += '(r)';
-      return `${r.index + 1}${status}`;
-    }).join(' ');
+    const items = results
+      .map(r => {
+        let status = r.ok ? 'OK' : 'X';
+        if (r.revealed) status += '(r)';
+        return `${r.index + 1}${status}`;
+      })
+      .join(' ');
 
     const idParts = assignment.id.split('-');
     const shareId = idParts.length > 1 ? idParts[1] : assignment.id;
 
-    const avgAttempts = (summary.avgAttempts ?? 0).toFixed(2);
-
-    return `Homework: ${assignment.title} (v${assignment.version})
-Student: ${student.name || 'N/A'}
-Result: ${score} solved (${summary.reveals} reveals, ${summary.firstTry} first try, avg ${avgAttempts} attempts)
-Items: ${items}
-ID: ${shareId}`;
+    return `Homework: ${assignment.title} (v${assignment.version})\n` +
+      `Student: ${student.name || 'N/A'}\n` +
+      `Solved within limit: ${solvedLine}\n` +
+      `First try: ${firstTryLine}\n` +
+      `Reveals: ${summary.reveals}\n` +
+      `Avg attempts (solved): ${avgAttemptsText}\n` +
+      `Items: ${items}\n` +
+      `ID: ${shareId}`;
   };
 
   const shareText = generateShareText();
@@ -59,17 +63,17 @@ ID: ${shareId}`;
     <div className="text-center flex flex-col items-center justify-center h-full">
       <h2 className="text-3xl font-bold text-blue-600 mb-2">Homework Complete!</h2>
       <p className="text-lg text-gray-700 mb-4">Here are your results for "{assignment.title}".</p>
-      
-      <div className="text-5xl font-bold my-4">
-        {score}
-        <span className="text-2xl font-medium text-gray-600"> solved</span>
 
+      <div className="text-4xl font-bold text-gray-800 my-2">
+        Solved within limit: {solvedLine}
       </div>
-      <div className="my-2 text-gray-700">
-        First-try: {summary.firstTry} / {summary.total} • Reveals: {summary.reveals}
+      <div className="text-lg text-gray-700 mb-1">
+        First try: {firstTryLine}
+        <span className="mx-2 text-gray-400" aria-hidden="true">|</span>
+        Reveals: {summary.reveals}
       </div>
       <div className="text-sm text-gray-500 mb-4">
-        Avg attempts (solved): {summary.avgAttempts.toFixed(2)}
+        Avg attempts (solved): {avgAttemptsText}
       </div>
 
       <div className="flex flex-wrap gap-2 justify-center my-4">

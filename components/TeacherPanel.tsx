@@ -3,6 +3,22 @@ import type { Assignment, AssignmentOptions } from '../types';
 import { encodeAssignmentToHash } from '../utils/encoding';
 import { parseTeacherInput, splitIntoSentences } from '../utils/sentenceSplitter';
 
+const buildOptions = (
+  attempts: string,
+  revealAfterMaxAttempts: boolean,
+): AssignmentOptions => {
+  const attemptsSetting = attempts === 'unlimited' ? 'unlimited' : parseInt(attempts, 10);
+
+  return {
+    attemptsPerItem: attemptsSetting,
+    revealAfterMax: revealAfterMaxAttempts,
+    revealAnswerAfterMaxAttempts: revealAfterMaxAttempts,
+    hints: 'none',
+    feedback: 'show-on-wrong',
+    scramble: 'seeded',
+  };
+};
+
 const TeacherPanel: React.FC = () => {
   const [title, setTitle] = useState('');
   const [sentences, setSentences] = useState('');
@@ -41,27 +57,17 @@ const TeacherPanel: React.FC = () => {
 
     if (hasError) return;
 
-    // Default options for MVP
-    const options: AssignmentOptions = {
-      attemptsPerItem:
-        attemptsPerItem === 'unlimited' ? 'unlimited' : parseInt(attemptsPerItem, 10),
-      revealAnswerAfterMaxAttempts: revealAfterMaxAttempts,
-      hints: 'none',
-      feedback: 'show-on-wrong',
-      scramble: 'seeded',
-      attemptsPerItem: 3,
-      revealAfterMax: true,
-    };
+    const options: AssignmentOptions = buildOptions(attemptsPerItem, revealAfterMaxAttempts);
 
     const assignment: Assignment = {
-      id: `ss-${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '')}`, // e.g., ss-202509131300
+      id: `ss-${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '')}`,
       title,
       version: 1,
-      seed: Math.random().toString(36).substring(2, 10), // A random seed for this assignment
+      seed: Math.random().toString(36).substring(2, 10),
       options,
       sentences: sentenceArray,
     };
-    
+
     const hash = encodeAssignmentToHash(assignment);
     const base = window.location.href.split('#')[0];
     const link = `${base}#A=${hash}`;
@@ -85,7 +91,7 @@ const TeacherPanel: React.FC = () => {
         <h2 className="text-2xl font-bold text-gray-800">Teacher Panel</h2>
         <p className="text-gray-500 mt-1">Create a new homework assignment.</p>
       </div>
-      
+
       <div className="space-y-6">
         <div>
           <label htmlFor="title" className="block text-sm font-medium text-gray-700">Assignment Title</label>
@@ -152,18 +158,17 @@ const TeacherPanel: React.FC = () => {
         </div>
 
         <div className="flex justify-between items-center flex-wrap gap-4">
-            <button
-                type="button"
-                onClick={generateLink}
-                className="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition-all transform hover:scale-105"
-            >
-                Generate Link
-            </button>
-             <a href="#practice" className="px-6 py-2 bg-gray-600 text-white font-bold rounded-lg shadow-md hover:bg-gray-700 transition-all">
-                Back to Practice
-            </a>
+          <button
+            type="button"
+            onClick={generateLink}
+            className="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition-all transform hover:scale-105"
+          >
+            Generate Link
+          </button>
+          <a href="#practice" className="px-6 py-2 bg-gray-600 text-white font-bold rounded-lg shadow-md hover:bg-gray-700 transition-all">
+            Back to Practice
+          </a>
         </div>
-
 
         {generatedLink && (
           <div className="mt-6 p-4 bg-gray-50 rounded-lg border">

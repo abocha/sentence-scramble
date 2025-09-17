@@ -37,8 +37,26 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [attemptsUsed, setAttemptsUsed] = useState(0);
-  const [hasRevealed, setHasRevealed] = useState(false);
-  const maxAttempts = useMemo(() => assignment?.options?.attempts === 'two-then-reveal' ? 2 : Infinity, [assignment]);
+  const [itemComplete, setItemComplete] = useState(false);
+
+  const maxAttempts = useMemo(() => {
+    if (!assignment) return Number.POSITIVE_INFINITY;
+
+    const configured = assignment.options?.attemptsPerItem;
+    if (configured === 'unlimited') return Number.POSITIVE_INFINITY;
+    if (typeof configured === 'number' && configured > 0) return configured;
+    return 3;
+  }, [assignment]);
+
+  const revealAfterMax = useMemo(() => {
+    const options = assignment?.options;
+    if (!options) return true;
+    if (typeof options.revealAfterMax === 'boolean') return options.revealAfterMax;
+    if (typeof options.revealAnswerAfterMaxAttempts === 'boolean') {
+      return options.revealAnswerAfterMaxAttempts;
+    }
+    return true;
+  }, [assignment]);
 
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -81,12 +99,16 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
   const sentences = useMemo<SentenceWithOptions[]>(() => assignment?.sentences ?? defaultSentences.map(s => ({ text: s })), [assignment]);
   const correctSentenceText = useMemo(() => sentences[currentSentenceIndex]?.text, [sentences, currentSentenceIndex]);
 
-  const setupNewSentence = useCallback((index: number = currentSentenceIndex) => {
+  const setupNewSentence = useCallback((index: number = currentSentenceIndex, opts?: { preserveAttempts?: boolean }) => {
+    const preserveAttempts = opts?.preserveAttempts === true;
     setIsLoading(true);
     setFeedback(null);
     setUserSentence([]);
-    setAttemptsUsed(0);
-    setHasRevealed(false);
+    setHistory([]);
+    if (!preserveAttempts) {
+      setAttemptsUsed(0);
+      setItemComplete(false);
+    }
 
 
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -152,14 +174,28 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
 
   const startNewAttempt = () => {
     if (!assignment) return;
+
     const initialProgress: StudentProgress = {
       assignmentId: assignment.id,
       version: assignment.version,
       student: { name: studentName },
-      summary: { total: assignment.sentences.length, solvedWithinMax: 0, firstTry: 0, reveals: 0, avgAttempts: 0 },
-      results: []
+      summary: {
+        total: assignment.sentences.length,
+        solvedWithinMax: 0,
+        firstTry: 0,
+        reveals: 0,
+        avgAttempts: 0,
+      },
+      results: [],
+      current: { index: 0, attemptsUsed: 0, revealed: false },
     };
+
     setProgress(initialProgress);
+    const storageKey = `ss::${assignment.id}::${studentName}`;
+    saveProgress(storageKey, initialProgress);
+
+    setAttemptsUsed(0);
+    setItemComplete(false);
     setCurrentSentenceIndex(0);
     setupNewSentence(0);
     setShowResumePrompt(false);
@@ -167,15 +203,87 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
 
   const resumeAttempt = () => {
     if (!progress) return;
-    const lastCompletedIndex = progress.results.length - 1;
-    const nextIndex = lastCompletedIndex + 1;
+
+    const nextIndex = progress.current?.index ?? progress.results.length;
     if (nextIndex >= sentences.length) {
       setShowResults(true);
     } else {
       setCurrentSentenceIndex(nextIndex);
+      setAttemptsUsed(progress.current?.attemptsUsed ?? 0);
+      setItemComplete(progress.current?.revealed ?? false);
     }
+
+    setFeedback(null);
     setShowResumePrompt(false);
   };
+
+  const persistProgressUpdate = useCallback(
+    (updater: (prev: StudentProgress) => StudentProgress) => {
+      if (mode !== 'homework' || !assignment) return;
+
+      setProgress(prev => {
+        if (!prev) return prev;
+        const updated = updater(prev);
+        const storageKey = `ss::${assignment.id}::${studentName}`;
+        saveProgress(storageKey, updated);
+        return updated;
+      });
+    },
+    [mode, assignment, studentName]
+  );
+
+  const updateCurrentAttempt = useCallback(
+    (attemptCount: number, revealed: boolean) => {
+      persistProgressUpdate(prev => ({
+        ...prev,
+        current: { index: currentSentenceIndex, attemptsUsed: attemptCount, revealed },
+      }));
+    },
+    [persistProgressUpdate, currentSentenceIndex]
+  );
+
+  const recordResult = useCallback(
+    (result: Result, nextIndex: number) => {
+      const effectiveMax = Number.isFinite(maxAttempts) ? Number(maxAttempts) : Number.POSITIVE_INFINITY;
+
+      persistProgressUpdate(prev => {
+        const filtered = prev.results.filter(r => r.index !== result.index);
+        const results = [...filtered, result].sort((a, b) => a.index - b.index);
+        const summary = computeSummary(results, effectiveMax);
+        const totalSentences = assignment?.sentences.length ?? summary.total;
+
+        return {
+          ...prev,
+          results,
+          summary: { ...summary, total: totalSentences },
+          current: nextIndex < totalSentences
+            ? { index: nextIndex, attemptsUsed: 0, revealed: false }
+            : undefined,
+        };
+      });
+    },
+    [persistProgressUpdate, assignment, maxAttempts]
+  );
+
+  useEffect(() => {
+    if (mode !== 'homework' || !progress) return;
+
+    if (progress.current?.index === currentSentenceIndex) {
+      setAttemptsUsed(progress.current.attemptsUsed);
+      setItemComplete(progress.current.revealed);
+      return;
+    }
+
+    const completedResult = progress.results.find(r => r.index === currentSentenceIndex);
+    if (completedResult) {
+      setAttemptsUsed(completedResult.attempts);
+      setItemComplete(true);
+      return;
+    }
+
+    setAttemptsUsed(0);
+    setItemComplete(false);
+  }, [mode, progress, currentSentenceIndex]);
 
   // --- Word Movement Handlers (DND & Click) ---
   const findWordById = (id: string): Word | undefined => {
@@ -282,32 +390,19 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
   };
 
   // --- Answer Checking & Progression ---
-  const updateProgress = (result: Result) => {
-    if (!progress || !assignment) return;
-    const maxAttempts = assignment.options.attemptsPerItem ?? 3;
-    const solvedInc = result.ok && result.attempts <= maxAttempts ? 1 : 0;
-    const firstTryInc = result.ok && result.attempts === 1 ? 1 : 0;
-    const totalAttempts = progress.summary.avgAttempts * progress.results.length + result.attempts;
-    const newAvg = totalAttempts / (progress.results.length + 1);
-    const newProgress: StudentProgress = {
-      ...progress,
-      results: [...progress.results, result],
-      summary: {
-        total: progress.summary.total,
-        solvedWithinMax: progress.summary.solvedWithinMax + solvedInc,
-        firstTry: progress.summary.firstTry + firstTryInc,
-        reveals: progress.summary.reveals + (result.revealed ? 1 : 0),
-        avgAttempts: newAvg
-      }
-    };
-    setProgress(newProgress);
-    const storageKey = `ss::${assignment.id}::${studentName}`;
-    saveProgress(storageKey, newProgress);
+  const attemptDetail = (attempt: number): string | undefined => {
+    if (attempt <= 1) return undefined;
+    if (attempt === 2) return '(2nd try)';
+    if (attempt === 3) return '(3rd try)';
+    return `(${attempt}th try)`;
   };
 
   const handleCheckAnswer = () => {
-    const attempts = attemptsUsed + 1;
-    setAttemptsUsed(attempts);
+    if (itemComplete || userSentence.length === 0) return;
+
+    const attemptNumber = attemptsUsed + 1;
+    setAttemptsUsed(attemptNumber);
+
     let isCorrect = false;
 
     if (isChunkMode && currentChunks) {
@@ -319,32 +414,96 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
       isCorrect = userAnswer === correctSentenceText;
     }
 
+    if (isCorrect) {
+      const detail = attemptDetail(attemptNumber);
+      setFeedback({ type: 'success', message: 'Correct - nice.', detail });
+      setItemComplete(true);
+      if (mode === 'homework') {
+        recordResult(
+          { index: currentSentenceIndex, ok: true, revealed: false, attempts: attemptNumber },
+          currentSentenceIndex + 1
+        );
+      }
+      return;
+    }
+
+    const finiteMax = Number.isFinite(maxAttempts) ? Number(maxAttempts) : null;
+
+    if (!finiteMax || attemptNumber < finiteMax) {
+      let message: string;
+      if (finiteMax) {
+        const attemptsLeft = finiteMax - attemptNumber;
+        message = attemptNumber === 1
+          ? `Not yet. Try again (${attemptsLeft} ${attemptsLeft === 1 ? 'attempt' : 'attempts'} left).`
+          : attemptsLeft === 1
+            ? 'Close. One last try.'
+            : `Close. ${attemptsLeft} attempts left.`;
+      } else {
+        message = attemptNumber === 1 ? 'Not yet. Try again.' : 'Close. One more try.';
+      }
+      setFeedback({ type: 'error', message });
+      if (mode === 'homework') {
+        updateCurrentAttempt(attemptNumber, false);
+      }
+      return;
+    }
+
+    setItemComplete(true);
+    const revealMessage = revealAfterMax
+      ? `Here is the answer: "${correctSentenceText}"`
+      : "Let's take the next one.";
+    setFeedback({ type: 'error', message: revealMessage });
     if (mode === 'homework') {
-      updateProgress({ index: currentSentenceIndex, ok: isCorrect, revealed: false, attempts: 1 });
+      recordResult(
+        { index: currentSentenceIndex, ok: false, revealed: false, attempts: attemptNumber },
+        currentSentenceIndex + 1
+      );
     }
   };
 
   const handleReveal = () => {
-    setHasRevealed(true);
+    if (itemComplete) return;
+
+    const finalAttempts = Number.isFinite(maxAttempts)
+      ? Math.max(attemptsUsed, Number(maxAttempts))
+      : attemptsUsed + 1;
+
+    setAttemptsUsed(finalAttempts);
+    setItemComplete(true);
+    setFeedback({ type: 'error', message: `Here is the answer: "${correctSentenceText}"` });
+
     if (mode === 'homework') {
-      updateProgress({ index: currentSentenceIndex, ok: false, revealed: true, attempts: 1 });
+      recordResult(
+        { index: currentSentenceIndex, ok: false, revealed: true, attempts: finalAttempts },
+        currentSentenceIndex + 1
+      );
     }
-    setFeedback({ type: 'error', message: `The correct answer is: "${correctSentenceText}"` });
   };
 
   const handleNext = () => {
     setFeedback(null);
     setAttemptsUsed(0);
-    setHasRevealed(false);
+    setItemComplete(false);
+
     const nextIndex = currentSentenceIndex + 1;
+
+    if (mode === 'homework') {
+      if (assignment && nextIndex < assignment.sentences.length) {
+        persistProgressUpdate(prev => ({
+          ...prev,
+          current: { index: nextIndex, attemptsUsed: 0, revealed: false },
+        }));
+      } else {
+        persistProgressUpdate(prev => ({ ...prev, current: undefined }));
+      }
+    }
+
     if (nextIndex < sentences.length) {
       setCurrentSentenceIndex(nextIndex);
+    } else if (mode === 'homework') {
+      setShowResults(true);
     } else {
-      if (mode === 'homework') {
-        setShowResults(true);
-      } else { // Practice mode loop
-        setCurrentSentenceIndex(0);
-      }
+      setCurrentSentenceIndex(0);
     }
   };
 
@@ -355,7 +514,25 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
   };
 
   const renderGameContent = () => {
-    const isFinalStep = !!feedback && (feedback.type === 'success' || hasRevealed || attemptsUsed >= maxAttempts);
+    const finiteMax = Number.isFinite(maxAttempts) ? Number(maxAttempts) : null;
+    const nextAttemptNumber = finiteMax
+      ? Math.min(itemComplete ? attemptsUsed : attemptsUsed + 1, finiteMax)
+      : itemComplete ? attemptsUsed : attemptsUsed + 1;
+
+    const attemptLabel = finiteMax
+      ? itemComplete
+        ? `Attempts used: ${Math.min(attemptsUsed, finiteMax)} of ${finiteMax}`
+        : `Attempt ${nextAttemptNumber} of ${finiteMax}`
+      : itemComplete
+        ? `Attempts used: ${attemptsUsed}`
+        : `Attempt ${nextAttemptNumber}`;
+
+    const attemptAria = finiteMax
+      ? `Attempt ${Math.min(itemComplete ? attemptsUsed : attemptsUsed + 1, finiteMax)} of ${finiteMax}`
+      : `Attempt ${itemComplete ? attemptsUsed : attemptsUsed + 1}`;
+
+    const isFinalStep = itemComplete;
+
     return (
       <>
         {isLoading ? (
@@ -364,32 +541,89 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
           </div>
         ) : (
           <div className="flex flex-col gap-6 flex-grow">
-            <DropZone id="available-words" words={availableWords} title="Available Words" onDrop={(wordId, sourceZoneId) => handleDrop(wordId, sourceZoneId, 'available-words')} onWordClick={(wordId) => handleWordClick(wordId, 'available-words')} isDragging={isDragging} setIsDragging={setIsDragging} />
-            <DropZone id="user-sentence" words={userSentence} title="Your Sentence" onDrop={(wordId, sourceZoneId, index) => handleDrop(wordId, sourceZoneId, 'user-sentence', index)} onWordClick={(wordId) => handleWordClick(wordId, 'user-sentence')} isDragging={isDragging} setIsDragging={setIsDragging} isSentenceZone={true} />
+            <DropZone
+              id="available-words"
+              words={availableWords}
+              title="Available Words"
+              onDrop={(wordId, sourceZoneId) => handleDrop(wordId, sourceZoneId, 'available-words')}
+              onWordClick={(wordId) => handleWordClick(wordId, 'available-words')}
+              isDragging={isDragging}
+              setIsDragging={setIsDragging}
+            />
+            <DropZone
+              id="user-sentence"
+              words={userSentence}
+              title="Your Sentence"
+              onDrop={(wordId, sourceZoneId, index) => handleDrop(wordId, sourceZoneId, 'user-sentence', index)}
+              onWordClick={(wordId) => handleWordClick(wordId, 'user-sentence')}
+              isDragging={isDragging}
+              setIsDragging={setIsDragging}
+              isSentenceZone={true}
+            />
 
             {feedback && (
               <div className={`mt-4 p-4 rounded-lg text-center font-semibold text-white ${feedback.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
-                {feedback.message}
+                <span>{feedback.message}</span>
+                {feedback.detail && <span className="block text-sm font-medium opacity-90 mt-1">{feedback.detail}</span>}
               </div>
             )}
 
             <div className="mt-auto pt-6 flex flex-col sm:flex-row gap-4 justify-center items-center flex-wrap">
+              <div
+                className="text-xs font-medium tracking-wide text-gray-500 text-center"
+                aria-live="polite"
+                aria-atomic="true"
+                aria-label={attemptAria}
+              >
+                {attemptLabel}
+              </div>
+
               {isFinalStep ? (
-                <button type="button" onClick={handleNext} className="w-full sm:w-auto px-8 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition-all transform hover:scale-105">
-                  {currentSentenceIndex < sentences.length - 1 ? 'Next Sentence' : (mode === 'homework' ? 'Finish & See Results' : 'Next Sentence')}
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  className="w-full sm:w-auto px-8 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition-all transform hover:scale-105"
+                >
+                  {currentSentenceIndex < sentences.length - 1
+                    ? 'Next Sentence'
+                    : (mode === 'homework' ? 'Finish & See Results' : 'Next Sentence')}
                 </button>
               ) : (
                 <>
                   {mode === 'homework' && (
                     <>
-                      <button type="button" onClick={handleUndo} className="w-full sm:w-auto px-6 py-3 bg-gray-500 text-white font-bold rounded-lg shadow-md hover:bg-gray-600 transition-colors">Undo</button>
-                      <button type="button" onClick={() => setupNewSentence()} className="w-full sm:w-auto px-6 py-3 bg-yellow-500 text-white font-bold rounded-lg shadow-md hover:bg-yellow-600 transition-colors">Reset</button>
+                      <button
+                        type="button"
+                        onClick={handleUndo}
+                        className="w-full sm:w-auto px-6 py-3 bg-gray-500 text-white font-bold rounded-lg shadow-md hover:bg-gray-600 transition-colors"
+                      >
+                        Undo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setupNewSentence(currentSentenceIndex, { preserveAttempts: true })}
+                        className="w-full sm:w-auto px-6 py-3 bg-yellow-500 text-white font-bold rounded-lg shadow-md hover:bg-yellow-600 transition-colors"
+                      >
+                        Reset
+                      </button>
                     </>
                   )}
-                  <button type="button" onClick={handleCheckAnswer} disabled={userSentence.length === 0} className="w-full sm:w-auto px-8 py-3 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 disabled:bg-gray-400 transition-all transform hover:scale-105">Check Answer</button>
-                  {mode === 'homework' && (
-                    <button type="button" onClick={handleReveal} className="w-full sm:w-auto px-6 py-3 bg-red-600 text-white font-bold rounded-lg shadow-md hover:bg-red-700 transition-colors">Reveal</button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={handleCheckAnswer}
+                    disabled={userSentence.length === 0 || itemComplete}
+                    className="w-full sm:w-auto px-8 py-3 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 disabled:bg-gray-400 transition-all transform hover:scale-105"
+                  >
+                    Check Answer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleReveal}
+                    disabled={itemComplete}
+                    className="w-full sm:w-auto px-6 py-3 bg-red-600 text-white font-bold rounded-lg shadow-md hover:bg-red-700 disabled:bg-red-300 transition-colors"
+                  >
+                    Reveal
+                  </button>
                 </>
               )}
             </div>
@@ -444,3 +678,5 @@ const GameApp: React.FC<GameAppProps> = ({ mode, assignment }) => {
 };
 
 export default GameApp;
+
+
