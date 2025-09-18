@@ -5,7 +5,7 @@ Sentence Scramble is a classroom-friendly React app for building, sharing, and c
 ## Overview
 
 - Practice mode loads a built-in bank of sentences so anyone can try the activity instantly.
-- Homework mode is activated by `#A=<hash>` links generated in the teacher tools; progress is stored locally so students can resume unfinished work.
+- Homework mode is activated by `#C=<hash>` links generated in the teacher tools; progress is stored locally so students can resume unfinished work.
 - Teacher mode (`/#teacher`) provides a form to paste sentences, auto-split paragraphs, and create shareable homework instructions in one click.
 
 ## Getting Started

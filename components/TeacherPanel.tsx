@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Assignment, AssignmentOptions } from '../types';
-import { encodeAssignmentToHash } from '../utils/encoding';
+import { encodeAssignmentToCompactHash, encodeAssignmentToHash } from '../utils/encoding';
 import { parseTeacherInput, splitIntoSentences } from '../utils/sentenceSplitter';
 import Button, { getButtonClasses } from './Button';
 
@@ -69,9 +69,11 @@ const TeacherPanel: React.FC = () => {
       sentences: sentenceArray,
     };
 
-    const hash = encodeAssignmentToHash(assignment);
+    const compactHash = encodeAssignmentToCompactHash(assignment);
     const base = window.location.href.split('#')[0];
-    const link = `${base}#A=${hash}`;
+    const hashPrefix = compactHash ? '#C=' : '#A='; // fall back to legacy format if compact encoding fails
+    const hash = compactHash || encodeAssignmentToHash(assignment);
+    const link = hash ? `${base}${hashPrefix}${hash}` : '';
     setGeneratedLink(link);
     setCopySuccess('');
   };
