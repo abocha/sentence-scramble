@@ -43,5 +43,28 @@ describe('tokenizeSentence', () => {
       'kids',
     ]);
   });
+
+  it('locks phrases even when punctuation is attached', () => {
+    expect(tokenizeSentence('They will drop off, then head home.')).toEqual([
+      'They',
+      'will',
+      'drop off,',
+      'then',
+      'head',
+      'home.',
+    ]);
+  });
+
+  it('matches phrases with accented characters', () => {
+    const sentence = 'Café owners look after customers with care.';
+    expect(tokenizeSentence(sentence)).toEqual([
+      'Café',
+      'owners',
+      'look after',
+      'customers',
+      'with',
+      'care.'
+    ]);
+  });
 });
 
