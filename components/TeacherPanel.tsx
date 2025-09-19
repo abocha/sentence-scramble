@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { Assignment, AssignmentOptions } from '../types';
 import { encodeAssignmentToCompactHash, encodeAssignmentToHash } from '../utils/encoding';
 import { parseTeacherInput, splitIntoSentences } from '../utils/sentenceSplitter';
@@ -20,15 +20,38 @@ const buildOptions = (
   };
 };
 
+type ShareMessage = { text: string; tone: 'success' | 'error' };
+
+const buildQrFileName = (name: string) => {
+  const fallback = 'assignment';
+  const normalized = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40);
+
+  return `${normalized || fallback}-qr.png`;
+};
+
 const TeacherPanel: React.FC = () => {
   const [title, setTitle] = useState('');
   const [sentences, setSentences] = useState('');
+
   const [generatedLink, setGeneratedLink] = useState('');
-  const [copySuccess, setCopySuccess] = useState('');
+  const [shareMessage, setShareMessage] = useState<ShareMessage | null>(null);
   const [titleError, setTitleError] = useState('');
   const [sentencesError, setSentencesError] = useState('');
   const [attemptsPerItem, setAttemptsPerItem] = useState('3');
   const [revealAfterMaxAttempts, setRevealAfterMaxAttempts] = useState(true);
+  const [qrLoadError, setQrLoadError] = useState(false);
+  const [isDownloadingQr, setIsDownloadingQr] = useState(false);
+
+  const qrCodeUrl = useMemo(() => (
+    generatedLink
+      ? `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(generatedLink)}`
+      : ''
+  ), [generatedLink]);
 
   const handleSplitSentences = () => {
     const lines = splitIntoSentences(sentences);
@@ -75,17 +98,60 @@ const TeacherPanel: React.FC = () => {
     const hash = compactHash || encodeAssignmentToHash(assignment);
     const link = hash ? `${base}${hashPrefix}${hash}` : '';
     setGeneratedLink(link);
-    setCopySuccess('');
+    setShareMessage(null);
+    setQrLoadError(false);
   };
 
   const copyToClipboard = () => {
     if (!generatedLink) return;
     const instructions = `Homework: ${title}\n\nLink: ${generatedLink}\n\nInstructions: Build each sentence. When you are done, tap 'Finish' and send the results back to me.`;
     navigator.clipboard.writeText(instructions).then(() => {
-      setCopySuccess('Instructions copied to clipboard!');
+      setShareMessage({ text: 'Instructions copied to clipboard!', tone: 'success' });
     }, () => {
-      setCopySuccess('Failed to copy.');
+      setShareMessage({ text: 'Failed to copy instructions.', tone: 'error' });
     });
+  };
+
+  const copyLinkToClipboard = () => {
+    if (!generatedLink) return;
+    navigator.clipboard.writeText(generatedLink).then(() => {
+      setShareMessage({ text: 'Link copied to clipboard!', tone: 'success' });
+    }, () => {
+      setShareMessage({ text: 'Failed to copy link.', tone: 'error' });
+    });
+  };
+
+  const openLinkInNewTab = () => {
+    if (!generatedLink) return;
+    window.open(generatedLink, '_blank', 'noopener,noreferrer');
+  };
+
+  const downloadQrCode = async () => {
+    if (!qrCodeUrl) return;
+    setIsDownloadingQr(true);
+    setShareMessage(null);
+    try {
+      const response = await fetch(qrCodeUrl);
+      if (!response.ok) {
+        throw new Error('QR download failed');
+      }
+
+      const blob = await response.blob();
+      const filename = buildQrFileName(title);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      setShareMessage({ text: `QR code downloaded as ${filename}!`, tone: 'success' });
+    } catch (error) {
+      setShareMessage({ text: 'Failed to download QR code. Try again or share the link directly.', tone: 'error' });
+    } finally {
+      setIsDownloadingQr(false);
+    }
   };
 
   return (
@@ -188,19 +254,79 @@ const TeacherPanel: React.FC = () => {
               className="w-full p-2 mt-2 bg-white border rounded"
               onFocus={(e) => e.target.select()}
             />
-            <Button
-              onClick={copyToClipboard}
-              variant="success"
-              fullWidth
-              className="mt-4 sm:w-auto"
-            >
-              Copy Instructions for Student
-            </Button>
-            <div className="mt-2 min-h-[1.25rem] text-sm" aria-live="polite">
-              {copySuccess && (
-                <span className="text-green-700">{copySuccess}</span>
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              <Button
+                onClick={copyToClipboard}
+                variant="success"
+                fullWidth
+                className="sm:flex-1"
+              >
+                Copy Instructions for Student
+              </Button>
+              <Button
+                onClick={copyLinkToClipboard}
+                variant="secondary"
+                fullWidth
+                className="sm:flex-1"
+              >
+                Copy Link Only
+              </Button>
+              <Button
+                onClick={openLinkInNewTab}
+                variant="tertiary"
+                fullWidth
+                className="sm:flex-1"
+              >
+                Open Link in New Tab
+              </Button>
+            </div>
+            <div className="mt-2 min-h-[1.25rem] text-sm text-center" aria-live="polite">
+              {shareMessage && (
+                <span className={shareMessage.tone === 'success' ? 'text-green-700' : 'text-red-700'}>
+                  {shareMessage.text}
+                </span>
               )}
             </div>
+            {qrCodeUrl && (
+              <div className="mt-6">
+                <h4 className="font-semibold text-sm text-gray-700">Share with a QR code</h4>
+                <p className="text-sm text-gray-600 mt-1">Students can scan the QR code to open the assignment instantly.</p>
+                <div className="mt-4 flex flex-col items-center">
+                  <img
+                    src={qrCodeUrl}
+                    alt="QR code linking to the generated assignment"
+                    className="h-48 w-48 rounded-lg shadow"
+                    loading="lazy"
+                    onLoad={() => setQrLoadError(false)}
+                    onError={() => setQrLoadError(true)}
+                  />
+                  {qrLoadError ? (
+                    <p className="mt-3 text-sm text-red-700 text-center">
+                      We couldn't load the QR code. Try again or share the link directly.
+                    </p>
+                  ) : (
+                    <div className="mt-4 flex flex-col items-center gap-2 sm:flex-row">
+                      <a
+                        href={qrCodeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={getButtonClasses('tertiary', { extra: 'sm:w-auto' })}
+                      >
+                        View Full Size
+                      </a>
+                      <Button
+                        onClick={downloadQrCode}
+                        variant="neutral"
+                        className="sm:w-auto"
+                        disabled={isDownloadingQr}
+                      >
+                        {isDownloadingQr ? 'Downloading…' : 'Download QR Code'}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
