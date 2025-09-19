@@ -61,3 +61,32 @@ export interface StudentProgress {
     revealed: boolean;
   };
 }
+
+export interface TeacherDraft {
+  title: string;
+  sentences: string;
+  attemptsPerItem: string;
+  revealAfterMaxAttempts: boolean;
+  instructionsTemplate: string;
+  updatedAt: string;
+}
+
+export interface ShareHistoryEntry {
+  id: string;
+  title: string;
+  link: string;
+  instructions: string;
+  createdAt: string;
+  attemptsPerItem: string;
+  revealAfterMaxAttempts: boolean;
+  template: string;
+  sentences: string[];
+  qrFileName?: string;
+}
+
+export interface TeacherFeedbackMessage {
+  text: string;
+  tone: 'success' | 'error';
+  actionLabel?: string;
+  onAction?: () => void;
+}

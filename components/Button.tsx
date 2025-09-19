@@ -39,15 +39,18 @@ export const getButtonClasses = (variant: Variant = 'primary', options?: { fullW
   return getClasses(variant, options?.fullWidth, options?.extra);
 };
 
-const Button: React.FC<ButtonProps> = ({ variant = 'primary', fullWidth, className, type = 'button', ...props }) => {
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({ variant = 'primary', fullWidth, className, type = 'button', ...props }, ref) => {
   return (
     <button
+      ref={ref}
       type={type}
       className={getClasses(variant, fullWidth, className)}
       {...props}
     />
   );
-};
+});
+
+Button.displayName = 'Button';
 
 export type { Variant as ButtonVariant };
 

@@ -1,61 +1,139 @@
-import React, { useMemo, useState } from 'react';
-import type { Assignment, AssignmentOptions } from '../types';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import type {
+  Assignment,
+  AssignmentOptions,
+  ShareHistoryEntry,
+  TeacherFeedbackMessage,
+} from '../types';
+import { DEFAULT_INSTRUCTIONS_TEMPLATE } from '../constants/teacher';
 import { encodeAssignmentToCompactHash, encodeAssignmentToHash } from '../utils/encoding';
+import {
+  buildInstructionsFromTemplate,
+  buildOptions,
+  buildQrFileName,
+  buildQrUrl,
+  generateAssignmentId,
+} from '../utils/teacherAssignment';
 import { parseTeacherInput, splitIntoSentences } from '../utils/sentenceSplitter';
 import Button, { getButtonClasses } from './Button';
-
-const buildOptions = (
-  attempts: string,
-  revealAfterMaxAttempts: boolean,
-): AssignmentOptions => {
-  const attemptsSetting = attempts === 'unlimited' ? 'unlimited' : parseInt(attempts, 10);
-
-  return {
-    attemptsPerItem: attemptsSetting,
-    revealAfterMax: revealAfterMaxAttempts,
-    revealAnswerAfterMaxAttempts: revealAfterMaxAttempts,
-    hints: 'none',
-    feedback: 'show-on-wrong',
-    scramble: 'seeded',
-  };
-};
-
-type ShareMessage = { text: string; tone: 'success' | 'error' };
-
-const buildQrFileName = (name: string) => {
-  const fallback = 'assignment';
-  const normalized = name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 40);
-
-  return `${normalized || fallback}-qr.png`;
-};
+import { useTeacherDraft } from './teacher/useTeacherDraft';
+import { useShareHistory } from './teacher/useShareHistory';
+import TeacherInstructionsCard from './teacher/TeacherInstructionsCard';
+import TeacherShareOutput from './teacher/TeacherShareOutput';
+import { useTeacherShareActions } from './teacher/useTeacherShareActions';
+import TeacherShareHistory from './teacher/TeacherShareHistory';
 
 const TeacherPanel: React.FC = () => {
-  const [title, setTitle] = useState('');
-  const [sentences, setSentences] = useState('');
+  const {
+    title,
+    sentences,
+    attemptsPerItem,
+    revealAfterMaxAttempts,
+    instructionsTemplate,
+    isLoaded: isDraftLoaded,
+    setTitle,
+    setSentences,
+    setAttemptsPerItem,
+    setRevealAfterMaxAttempts,
+    setInstructionsTemplate,
+  } = useTeacherDraft();
+
+  const {
+    history,
+    filteredHistory,
+    historyFeedback,
+    setHistoryFeedback,
+    historySearchQuery,
+    setHistorySearchQuery,
+    addEntry,
+    removeEntry,
+    clearHistory: clearShareHistory,
+    undoClear,
+  } = useShareHistory();
 
   const [generatedLink, setGeneratedLink] = useState('');
-  const [shareMessage, setShareMessage] = useState<ShareMessage | null>(null);
+  const [shareFeedback, setShareFeedback] = useState<TeacherFeedbackMessage | null>(null);
   const [titleError, setTitleError] = useState('');
   const [sentencesError, setSentencesError] = useState('');
-  const [attemptsPerItem, setAttemptsPerItem] = useState('3');
-  const [revealAfterMaxAttempts, setRevealAfterMaxAttempts] = useState(true);
-  const [qrLoadError, setQrLoadError] = useState(false);
-  const [isDownloadingQr, setIsDownloadingQr] = useState(false);
+  const [showInstructionsEditor, setShowInstructionsEditor] = useState(false);
+  const hasAutoOpenedInstructions = useRef(false);
 
-  const qrCodeUrl = useMemo(() => (
-    generatedLink
-      ? `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(generatedLink)}`
-      : ''
-  ), [generatedLink]);
+  const {
+    copyText,
+    downloadQrCode,
+    isDownloadingQr,
+    qrLoadError,
+    setQrLoadError,
+  } = useTeacherShareActions();
+
+  const qrCodeUrl = useMemo(() => buildQrUrl(generatedLink), [generatedLink]);
+  const instructionsPreview = useMemo(() => {
+    const previewLink = generatedLink || '[Link will appear after you generate it]';
+
+    return buildInstructionsFromTemplate(instructionsTemplate, {
+      title: title || 'Assignment',
+      link: previewLink,
+      attemptsPerItem,
+      createdAt: new Date().toISOString(),
+    });
+  }, [instructionsTemplate, title, generatedLink, attemptsPerItem]);
+  const isUsingDefaultTemplate = useMemo(() => (
+    instructionsTemplate.trim() === DEFAULT_INSTRUCTIONS_TEMPLATE.trim()
+  ), [instructionsTemplate]);
+  useEffect(() => {
+    if (!isDraftLoaded || hasAutoOpenedInstructions.current) return;
+    hasAutoOpenedInstructions.current = true;
+    if (instructionsTemplate.trim() !== DEFAULT_INSTRUCTIONS_TEMPLATE.trim()) {
+      setShowInstructionsEditor(true);
+    }
+  }, [isDraftLoaded, instructionsTemplate]);
 
   const handleSplitSentences = () => {
     const lines = splitIntoSentences(sentences);
     setSentences(lines.join('\n'));
+  };
+
+  const copyWithFeedback = async (
+    text: string,
+    messages: { success: string; unavailable: string; failed: string },
+    target: 'share' | 'history' = 'share',
+  ) => {
+    if (!text) return;
+    const setFeedback = target === 'share' ? setShareFeedback : setHistoryFeedback;
+    setFeedback(null);
+    const result = await copyText(text);
+
+    if (result.ok) {
+      setFeedback({ text: messages.success, tone: 'success' });
+      return;
+    }
+
+    if (result.reason === 'unavailable') {
+      setFeedback({ text: messages.unavailable, tone: 'error' });
+      return;
+    }
+
+    if (result.reason === 'failed') {
+      setFeedback({ text: messages.failed, tone: 'error' });
+    }
+  };
+
+  const downloadQrWithFeedback = async (
+    link: string,
+    fileName: string,
+    target: 'share' | 'history' = 'share',
+    options?: { withLoading?: boolean },
+  ) => {
+    if (!link) return;
+    const setFeedback = target === 'share' ? setShareFeedback : setHistoryFeedback;
+    setFeedback(null);
+
+    const result = await downloadQrCode(link, fileName, options);
+    if (result.ok) {
+      setFeedback({ text: `QR code downloaded as ${fileName}!`, tone: 'success' });
+    } else {
+      setFeedback({ text: 'Failed to download QR code. Try again or share the link directly.', tone: 'error' });
+    }
   };
 
   const generateLink = () => {
@@ -84,7 +162,7 @@ const TeacherPanel: React.FC = () => {
     const options: AssignmentOptions = buildOptions(attemptsPerItem, revealAfterMaxAttempts);
 
     const assignment: Assignment = {
-      id: `ss-${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '')}`,
+      id: generateAssignmentId(),
       title,
       version: 1,
       seed: Math.random().toString(36).substring(2, 10),
@@ -97,27 +175,61 @@ const TeacherPanel: React.FC = () => {
     const hashPrefix = compactHash ? '#C=' : '#A='; // fall back to legacy format if compact encoding fails
     const hash = compactHash || encodeAssignmentToHash(assignment);
     const link = hash ? `${base}${hashPrefix}${hash}` : '';
+    if (!link) {
+      setShareFeedback({ text: 'Failed to generate a shareable link. Please try again.', tone: 'error' });
+      return;
+    }
+    const createdAt = new Date().toISOString();
+    const instructions = buildInstructionsFromTemplate(instructionsTemplate, {
+      title,
+      link,
+      attemptsPerItem,
+      createdAt,
+    });
+    const qrFileName = buildQrFileName(title);
+    const sentenceTexts = sentenceArray.map((sentence) => sentence.text);
+
     setGeneratedLink(link);
-    setShareMessage(null);
+    setShareFeedback(null);
     setQrLoadError(false);
+
+    const entry: ShareHistoryEntry = {
+      id: assignment.id,
+      title,
+      link,
+      instructions,
+      createdAt,
+      attemptsPerItem,
+      revealAfterMaxAttempts,
+      template: instructionsTemplate,
+      sentences: sentenceTexts,
+      qrFileName,
+    };
+
+    addEntry(entry);
   };
 
-  const copyToClipboard = () => {
+  const copyToClipboard = async () => {
     if (!generatedLink) return;
-    const instructions = `Homework: ${title}\n\nLink: ${generatedLink}\n\nInstructions: Build each sentence. When you are done, tap 'Finish' and send the results back to me.`;
-    navigator.clipboard.writeText(instructions).then(() => {
-      setShareMessage({ text: 'Instructions copied to clipboard!', tone: 'success' });
-    }, () => {
-      setShareMessage({ text: 'Failed to copy instructions.', tone: 'error' });
+    const instructions = buildInstructionsFromTemplate(instructionsTemplate, {
+      title,
+      link: generatedLink,
+      attemptsPerItem,
+      createdAt: new Date().toISOString(),
+    });
+    await copyWithFeedback(instructions, {
+      success: 'Instructions copied to clipboard!',
+      unavailable: 'Clipboard is not available in this browser.',
+      failed: 'Failed to copy instructions.',
     });
   };
 
-  const copyLinkToClipboard = () => {
+  const copyLinkToClipboard = async () => {
     if (!generatedLink) return;
-    navigator.clipboard.writeText(generatedLink).then(() => {
-      setShareMessage({ text: 'Link copied to clipboard!', tone: 'success' });
-    }, () => {
-      setShareMessage({ text: 'Failed to copy link.', tone: 'error' });
+    await copyWithFeedback(generatedLink, {
+      success: 'Link copied to clipboard!',
+      unavailable: 'Clipboard is not available in this browser.',
+      failed: 'Failed to copy link.',
     });
   };
 
@@ -126,32 +238,62 @@ const TeacherPanel: React.FC = () => {
     window.open(generatedLink, '_blank', 'noopener,noreferrer');
   };
 
-  const downloadQrCode = async () => {
-    if (!qrCodeUrl) return;
-    setIsDownloadingQr(true);
-    setShareMessage(null);
-    try {
-      const response = await fetch(qrCodeUrl);
-      if (!response.ok) {
-        throw new Error('QR download failed');
-      }
+  const downloadShareQr = async () => {
+    if (!generatedLink) return;
+    const fileName = buildQrFileName(title);
+    await downloadQrWithFeedback(generatedLink, fileName, 'share', { withLoading: true });
+  };
 
-      const blob = await response.blob();
-      const filename = buildQrFileName(title);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      setShareMessage({ text: `QR code downloaded as ${filename}!`, tone: 'success' });
-    } catch (error) {
-      setShareMessage({ text: 'Failed to download QR code. Try again or share the link directly.', tone: 'error' });
-    } finally {
-      setIsDownloadingQr(false);
+  const copyHistoryInstructions = async (entry: ShareHistoryEntry) => {
+    const instructionsText = entry.instructions && entry.instructions.trim().length > 0
+      ? entry.instructions
+      : buildInstructionsFromTemplate(entry.template, {
+        title: entry.title,
+        link: entry.link,
+        attemptsPerItem: entry.attemptsPerItem,
+        createdAt: entry.createdAt,
+      });
+    await copyWithFeedback(instructionsText, {
+      success: 'Instructions copied to clipboard!',
+      unavailable: 'Clipboard is not available in this browser.',
+      failed: 'Failed to copy instructions.',
+    }, 'history');
+  };
+
+  const copyHistoryLink = async (entry: ShareHistoryEntry) => {
+    await copyWithFeedback(entry.link, {
+      success: 'Link copied to clipboard!',
+      unavailable: 'Clipboard is not available in this browser.',
+      failed: 'Failed to copy link.',
+    }, 'history');
+  };
+
+  const openHistoryLink = (entry: ShareHistoryEntry) => {
+    if (!entry.link) return;
+    window.open(entry.link, '_blank', 'noopener,noreferrer');
+  };
+
+  const downloadHistoryQr = async (entry: ShareHistoryEntry) => {
+    const fileName = entry.qrFileName || buildQrFileName(entry.title);
+    await downloadQrWithFeedback(entry.link, fileName, 'history');
+  };
+
+  const restoreFromHistory = (entry: ShareHistoryEntry) => {
+    setTitle(entry.title);
+    setSentences(entry.sentences.join('\n'));
+    setAttemptsPerItem(entry.attemptsPerItem);
+    setRevealAfterMaxAttempts(entry.revealAfterMaxAttempts);
+    setInstructionsTemplate(entry.template);
+    setGeneratedLink(entry.link);
+    setQrLoadError(false);
+    setHistoryFeedback({ text: 'Assignment restored. Update anything you need, then share again.', tone: 'success' });
+    if (entry.template.trim() !== DEFAULT_INSTRUCTIONS_TEMPLATE.trim()) {
+      setShowInstructionsEditor(true);
     }
+  };
+
+  const removeHistoryEntry = (id: string, createdAt: string) => {
+    removeEntry(id, createdAt);
   };
 
   return (
@@ -227,6 +369,15 @@ const TeacherPanel: React.FC = () => {
           </label>
         </div>
 
+        <TeacherInstructionsCard
+          instructionsTemplate={instructionsTemplate}
+          onTemplateChange={setInstructionsTemplate}
+          showInstructionsEditor={showInstructionsEditor}
+          onToggleEditor={() => setShowInstructionsEditor((prev) => !prev)}
+          instructionsPreview={instructionsPreview}
+          isUsingDefaultTemplate={isUsingDefaultTemplate}
+        />
+
         <div className="flex justify-between items-center flex-wrap gap-4">
           <Button
             onClick={generateLink}
@@ -245,89 +396,36 @@ const TeacherPanel: React.FC = () => {
         </div>
 
         {generatedLink && (
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg border">
-            <h3 className="font-semibold">Generated Link:</h3>
-            <input
-              type="text"
-              readOnly
-              value={generatedLink}
-              className="w-full p-2 mt-2 bg-white border rounded"
-              onFocus={(e) => e.target.select()}
-            />
-            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-              <Button
-                onClick={copyToClipboard}
-                variant="success"
-                fullWidth
-                className="sm:flex-1"
-              >
-                Copy Instructions for Student
-              </Button>
-              <Button
-                onClick={copyLinkToClipboard}
-                variant="secondary"
-                fullWidth
-                className="sm:flex-1"
-              >
-                Copy Link Only
-              </Button>
-              <Button
-                onClick={openLinkInNewTab}
-                variant="tertiary"
-                fullWidth
-                className="sm:flex-1"
-              >
-                Open Link in New Tab
-              </Button>
-            </div>
-            <div className="mt-2 min-h-[1.25rem] text-sm text-center" aria-live="polite">
-              {shareMessage && (
-                <span className={shareMessage.tone === 'success' ? 'text-green-700' : 'text-red-700'}>
-                  {shareMessage.text}
-                </span>
-              )}
-            </div>
-            {qrCodeUrl && (
-              <div className="mt-6">
-                <h4 className="font-semibold text-sm text-gray-700">Share with a QR code</h4>
-                <p className="text-sm text-gray-600 mt-1">Students can scan the QR code to open the assignment instantly.</p>
-                <div className="mt-4 flex flex-col items-center">
-                  <img
-                    src={qrCodeUrl}
-                    alt="QR code linking to the generated assignment"
-                    className="h-48 w-48 rounded-lg shadow"
-                    loading="lazy"
-                    onLoad={() => setQrLoadError(false)}
-                    onError={() => setQrLoadError(true)}
-                  />
-                  {qrLoadError ? (
-                    <p className="mt-3 text-sm text-red-700 text-center">
-                      We couldn't load the QR code. Try again or share the link directly.
-                    </p>
-                  ) : (
-                    <div className="mt-4 flex flex-col items-center gap-2 sm:flex-row">
-                      <a
-                        href={qrCodeUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={getButtonClasses('tertiary', { extra: 'sm:w-auto' })}
-                      >
-                        View Full Size
-                      </a>
-                      <Button
-                        onClick={downloadQrCode}
-                        variant="neutral"
-                        className="sm:w-auto"
-                        disabled={isDownloadingQr}
-                      >
-                        {isDownloadingQr ? 'Downloading…' : 'Download QR Code'}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+          <TeacherShareOutput
+            generatedLink={generatedLink}
+            shareFeedback={shareFeedback}
+            onCopyInstructions={() => { void copyToClipboard(); }}
+            onCopyLink={() => { void copyLinkToClipboard(); }}
+            onOpenLink={openLinkInNewTab}
+            onDownloadQr={() => { void downloadShareQr(); }}
+            qrCodeUrl={qrCodeUrl}
+            qrLoadError={qrLoadError}
+            onQrLoadSuccess={() => setQrLoadError(false)}
+            onQrLoadError={() => setQrLoadError(true)}
+            isDownloadingQr={isDownloadingQr}
+          />
+        )}
+
+        {(history.length > 0 || historySearchQuery || historyFeedback) && (
+          <TeacherShareHistory
+            history={history}
+            filteredHistory={filteredHistory}
+            historyFeedback={historyFeedback}
+            historySearchQuery={historySearchQuery}
+            onHistorySearchChange={setHistorySearchQuery}
+            onClearHistory={clearShareHistory}
+            onRestore={restoreFromHistory}
+            onRemove={removeHistoryEntry}
+            onCopyInstructions={copyHistoryInstructions}
+            onCopyLink={copyHistoryLink}
+            onOpenLink={openHistoryLink}
+            onDownloadQr={downloadHistoryQr}
+          />
         )}
       </div>
     </div>

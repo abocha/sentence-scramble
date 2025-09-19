@@ -41,9 +41,6 @@ const ResultsModal: React.FC<ResultsModalProps> = ({ assignment, progress, onSta
       })
       .join(' ');
 
-    const idParts = assignment.id.split('-');
-    const shareId = idParts.length > 1 ? idParts[1] : assignment.id;
-
     const legend = results.some(r => r.revealed)
       ? 'Legend: ✅ correct  ❌ incorrect  👀 revealed'
       : 'Legend: ✅ correct  ❌ incorrect';
@@ -56,7 +53,7 @@ const ResultsModal: React.FC<ResultsModalProps> = ({ assignment, progress, onSta
       `Avg attempts (solved): ${avgAttemptsText}\n` +
       `Items: ${items}\n` +
       `${legend}\n` +
-      `ID: ${shareId}`;
+      `ID: ${assignment.id}`;
   };
 
   const shareText = generateShareText();
