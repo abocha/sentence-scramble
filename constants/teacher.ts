@@ -6,4 +6,4 @@ export const TEACHER_HISTORY_STORAGE_KEY = 'sentence-scramble.share-history';
 export const QR_CODE_BASE_URL = 'https://api.qrserver.com/v1/create-qr-code/';
 export const QR_CODE_SIZE = '240x240';
 
-export const SHARE_HISTORY_LIMIT = 10;
+export const SHARE_HISTORY_LIMIT = 20;

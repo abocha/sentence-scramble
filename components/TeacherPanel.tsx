@@ -210,7 +210,10 @@ const TeacherPanel: React.FC = () => {
   };
 
   const copyToClipboard = async () => {
-    if (!generatedLink) return;
+    if (!generatedLink) {
+      setShareFeedback({ text: 'Generate a link before copying instructions.', tone: 'error' });
+      return;
+    }
     const instructions = buildInstructionsFromTemplate(instructionsTemplate, {
       title,
       link: generatedLink,
@@ -225,7 +228,10 @@ const TeacherPanel: React.FC = () => {
   };
 
   const copyLinkToClipboard = async () => {
-    if (!generatedLink) return;
+    if (!generatedLink) {
+      setShareFeedback({ text: 'Generate a link before copying it.', tone: 'error' });
+      return;
+    }
     await copyWithFeedback(generatedLink, {
       success: 'Link copied to clipboard!',
       unavailable: 'Clipboard is not available in this browser.',
@@ -239,7 +245,10 @@ const TeacherPanel: React.FC = () => {
   };
 
   const downloadShareQr = async () => {
-    if (!generatedLink) return;
+    if (!generatedLink) {
+      setShareFeedback({ text: 'Generate a link before downloading a QR code.', tone: 'error' });
+      return;
+    }
     const fileName = buildQrFileName(title);
     await downloadQrWithFeedback(generatedLink, fileName, 'share', { withLoading: true });
   };
@@ -376,6 +385,7 @@ const TeacherPanel: React.FC = () => {
           onToggleEditor={() => setShowInstructionsEditor((prev) => !prev)}
           instructionsPreview={instructionsPreview}
           isUsingDefaultTemplate={isUsingDefaultTemplate}
+          onResetTemplate={() => setInstructionsTemplate(DEFAULT_INSTRUCTIONS_TEMPLATE)}
         />
 
         <div className="flex justify-between items-center flex-wrap gap-4">
@@ -412,20 +422,22 @@ const TeacherPanel: React.FC = () => {
         )}
 
         {(history.length > 0 || historySearchQuery || historyFeedback) && (
-          <TeacherShareHistory
-            history={history}
-            filteredHistory={filteredHistory}
-            historyFeedback={historyFeedback}
-            historySearchQuery={historySearchQuery}
-            onHistorySearchChange={setHistorySearchQuery}
-            onClearHistory={clearShareHistory}
-            onRestore={restoreFromHistory}
-            onRemove={removeHistoryEntry}
-            onCopyInstructions={copyHistoryInstructions}
-            onCopyLink={copyHistoryLink}
-            onOpenLink={openHistoryLink}
-            onDownloadQr={downloadHistoryQr}
-          />
+          <div className="mt-12">
+            <TeacherShareHistory
+              history={history}
+              filteredHistory={filteredHistory}
+              historyFeedback={historyFeedback}
+              historySearchQuery={historySearchQuery}
+              onHistorySearchChange={setHistorySearchQuery}
+              onClearHistory={clearShareHistory}
+              onRestore={restoreFromHistory}
+              onRemove={removeHistoryEntry}
+              onCopyInstructions={copyHistoryInstructions}
+              onCopyLink={copyHistoryLink}
+              onOpenLink={openHistoryLink}
+              onDownloadQr={downloadHistoryQr}
+            />
+          </div>
         )}
       </div>
     </div>

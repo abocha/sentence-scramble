@@ -89,7 +89,7 @@ describe('teacherStorage', () => {
 
   it('saves share history with limit enforcement', () => {
     const storage = createMemoryStorage();
-    const entries: ShareHistoryEntry[] = Array.from({ length: 12 }).map((_, index) => ({
+    const entries: ShareHistoryEntry[] = Array.from({ length: 24 }).map((_, index) => ({
       id: `id-${index}`,
       title: 'Title',
       link: 'https://example.com',
@@ -103,6 +103,6 @@ describe('teacherStorage', () => {
 
     saveShareHistory(entries, storage);
     const stored = JSON.parse(storage.getItem(TEACHER_HISTORY_STORAGE_KEY) ?? '[]');
-    expect(stored).toHaveLength(10);
+    expect(stored).toHaveLength(20);
   });
 });

@@ -9,6 +9,7 @@ interface TeacherInstructionsCardProps {
   onToggleEditor: () => void;
   instructionsPreview: string;
   isUsingDefaultTemplate: boolean;
+  onResetTemplate: () => void;
 }
 
 const TeacherInstructionsCard: React.FC<TeacherInstructionsCardProps> = ({
@@ -18,6 +19,7 @@ const TeacherInstructionsCard: React.FC<TeacherInstructionsCardProps> = ({
   onToggleEditor,
   instructionsPreview,
   isUsingDefaultTemplate,
+  onResetTemplate,
 }) => {
   return (
     <div className="border border-gray-200 rounded-lg bg-white p-4">
@@ -48,6 +50,16 @@ const TeacherInstructionsCard: React.FC<TeacherInstructionsCardProps> = ({
             onChange={(event) => onTemplateChange(event.target.value)}
             className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
           />
+          <div className="flex flex-wrap gap-2">
+            <Button
+              onClick={onResetTemplate}
+              variant="neutral"
+              className="sm:w-auto"
+              disabled={isUsingDefaultTemplate}
+            >
+              Reset to default
+            </Button>
+          </div>
           <div className="bg-white border border-gray-200 rounded-md p-3 overflow-hidden">
             <h4 className="text-sm font-semibold text-gray-700">Preview</h4>
             <pre className="mt-2 whitespace-pre-wrap break-words text-sm text-gray-700">{instructionsPreview}</pre>

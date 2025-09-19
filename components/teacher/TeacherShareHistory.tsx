@@ -3,6 +3,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { ShareHistoryEntry, TeacherFeedbackMessage } from '../../types';
 import { buildQrFileName, formatHistoryTimestamp } from '../../utils/teacherAssignment';
 import Button from '../Button';
+import TrashIcon from '../icons/TrashIcon';
+import TeacherHistorySummary from './TeacherHistorySummary';
 
 interface TeacherShareHistoryProps {
   history: ShareHistoryEntry[];
@@ -84,12 +86,17 @@ const TeacherShareHistory: React.FC<TeacherShareHistoryProps> = ({
     }
   };
 
+  const headingId = 'teacher-history-heading';
+
   return (
-    <div className="mt-6 p-4 bg-white border rounded-lg">
-      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+    <section
+      aria-labelledby={headingId}
+      className="p-6 bg-slate-50 border border-slate-200 rounded-2xl shadow-sm"
+    >
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h3 className="font-semibold text-gray-800">Recent shares</h3>
-          <p className="text-sm text-gray-500 mt-1">Reuse a previous assignment without regenerating it.</p>
+          <h3 id={headingId} className="text-lg font-semibold text-slate-800">Recent shares</h3>
+          <p className="text-sm text-slate-600 mt-1">Reuse or manage assignments you generated earlier.</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <input
@@ -139,9 +146,11 @@ const TeacherShareHistory: React.FC<TeacherShareHistoryProps> = ({
         </div>
       </div>
 
-      <div className="mt-4 space-y-3">
+      <TeacherHistorySummary total={history.length} limit={20} />
+
+      <div className="mt-6 space-y-4">
         {filteredHistory.length === 0 ? (
-          <p className="text-sm text-gray-500">No recent shares match your search yet.</p>
+          <p className="text-sm text-slate-500">No recent shares match your search yet.</p>
         ) : filteredHistory.map((entry) => {
           const previewSentences = entry.sentences?.slice(0, 2).join('\n') ?? '';
           const remainingCount = Math.max((entry.sentences?.length ?? 0) - 2, 0);
@@ -150,14 +159,14 @@ const TeacherShareHistory: React.FC<TeacherShareHistoryProps> = ({
             : `${entry.attemptsPerItem} attempts per item`;
 
           return (
-            <div key={`${entry.id}-${entry.createdAt}`} className="border border-gray-200 rounded-md p-3 bg-gray-50">
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+            <div key={`${entry.id}-${entry.createdAt}`} className="border border-slate-200 rounded-xl p-4 bg-white shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                 <div>
-                  <p className="font-semibold text-gray-800">{entry.title || 'Untitled assignment'}</p>
-                  <p className="text-xs text-gray-500 flex flex-wrap gap-2">
+                  <p className="font-semibold text-slate-800">{entry.title || 'Untitled assignment'}</p>
+                  <p className="text-xs text-slate-500 flex flex-wrap gap-2">
                     <span>{formatHistoryTimestamp(entry.createdAt)}</span>
                     <span>· {attemptsLabel}</span>
-                    <span className="font-mono break-all text-gray-400">ID: {entry.id}</span>
+                    <span className="font-mono break-all text-slate-400">ID: {entry.id}</span>
                   </p>
                 </div>
                 <div className="flex gap-2 sm:flex-1 sm:justify-end">
@@ -171,23 +180,24 @@ const TeacherShareHistory: React.FC<TeacherShareHistoryProps> = ({
                   </Button>
                   <Button
                     onClick={() => onRemove(entry.id, entry.createdAt)}
-                    variant="danger"
+                    variant="tertiary"
                     fullWidth
-                    className="sm:w-auto"
+                    className="sm:w-auto text-red-600"
                   >
-                    Remove
+                    <TrashIcon className="h-4 w-4" />
+                    <span className="sr-only">Remove</span>
                   </Button>
                 </div>
               </div>
-              <div className="mt-3 bg-white border border-gray-200 rounded-md p-3 overflow-hidden">
-                <pre className="mt-1 whitespace-pre-wrap break-words text-sm text-gray-700">
+              <div className="mt-3 bg-slate-50 border border-slate-200 rounded-lg p-3 overflow-hidden">
+                <pre className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-700">
                   {previewSentences || 'Sentences unavailable for this entry.'}
                 </pre>
                 {remainingCount > 0 && (
-                  <p className="mt-1 text-xs text-gray-500">+{remainingCount} more sentence{remainingCount > 1 ? 's' : ''}</p>
+                  <p className="mt-1 text-xs text-slate-500">+{remainingCount} more sentence{remainingCount > 1 ? 's' : ''}</p>
                 )}
               </div>
-              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 <Button
                   onClick={() => void onCopyInstructions(entry)}
                   variant="success"
@@ -221,13 +231,13 @@ const TeacherShareHistory: React.FC<TeacherShareHistoryProps> = ({
                   Download QR
                 </Button>
               </div>
-              <p className="mt-2 text-xs text-gray-500">Saved as <span className="font-medium">{entry.qrFileName || buildQrFileName(entry.title)}</span></p>
+              <p className="mt-2 text-xs text-slate-500">Saved as <span className="font-medium">{entry.qrFileName || buildQrFileName(entry.title)}</span></p>
             </div>
           );
         })}
       </div>
 
-      <div className="min-h-[1.25rem] mt-4 text-sm text-center" aria-live="polite">
+      <div className="min-h-[1.25rem] mt-6 text-sm text-center" aria-live="polite">
         {historyFeedback && (
           <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
             <span className={historyFeedback.tone === 'success' ? 'text-green-700' : 'text-red-700'}>
@@ -245,7 +255,7 @@ const TeacherShareHistory: React.FC<TeacherShareHistoryProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </section>
   );
 };
 
