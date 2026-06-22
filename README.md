@@ -1,4 +1,33 @@
+<<<<<<< HEAD
 # Sentence Scramble
+=======
+# Welcome to Antigravity!
+
+Welcome to your new developer home! Your Firebase Studio project has been successfully migrated to Antigravity.
+
+Antigravity is our next-generation, agent-first IDE designed for high-velocity, autonomous development. Because Antigravity runs locally on your machine, you now have access to powerful local workflows and fully integrated AI editing capabilities that go beyond a cloud-based web IDE.
+
+## Getting Started
+- **Run Locally**: Use the **Run and Debug** menu on the left sidebar to start your local development server.
+  - Or in a terminal run `npm run dev` and visit `http://localhost:9002`.
+- **Deploy**: You can deploy your changes to Firebase App Hosting by using the integrated terminal and standard Firebase CLI commands, just as you did in Firebase Studio.
+- **Cleanup**: Cleanup unused artifacts with the @cleanup workflow.
+
+Enjoy the next era of AI-driven development!
+
+File any bugs at https://github.com/firebase/firebase-tools/issues
+
+**Firebase Studio Export Date:** 2026-06-22
+
+
+---
+
+## Previous README.md contents:
+
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+</div>
+>>>>>>> 2535f97 (migration attempt)
 
 Sentence Scramble is a classroom-friendly React app for building, sharing, and completing sentence reconstruction exercises. Learners drag shuffled words (or auto-generated phrase chunks) into place, while teachers can craft assignments and collect summarized results.
 

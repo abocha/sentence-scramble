@@ -10,3 +10,6 @@
 
 # Firebase
 .firebase/
+/.agents
+/.idx
+/.vscode

@@ -159,7 +159,19 @@ const TeacherPanel: React.FC = () => {
 
     if (hasError) return;
 
+<<<<<<< HEAD
     const options: AssignmentOptions = buildOptions(attemptsPerItem, revealAfterMaxAttempts);
+=======
+    // Default options for MVP
+    const options: AssignmentOptions = {
+      attemptsPerItem:
+        attemptsPerItem === 'unlimited' ? 'unlimited' : parseInt(attemptsPerItem, 10),
+      revealAnswerAfterMaxAttempts: revealAfterMaxAttempts,
+      hints: 'none',
+      feedback: 'show-on-wrong',
+      scramble: 'seeded',
+    };
+>>>>>>> 2535f97 (migration attempt)
 
     const assignment: Assignment = {
       id: generateAssignmentId(),
