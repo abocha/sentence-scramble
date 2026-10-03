@@ -1,5 +1,7 @@
 # Sentence Scramble
 
+[![CI](https://github.com/abocha/sentence-scramble/actions/workflows/test.yml/badge.svg)](https://github.com/abocha/sentence-scramble/actions/workflows/test.yml)
+
 A finished, deployed classroom web app for creating and completing sentence-reconstruction exercises.
 
 Teachers can turn sentences or short texts into shareable homework. Learners rearrange shuffled words, check their answers, reveal difficult items, resume unfinished work, and send a compact result summary back to the teacher.
